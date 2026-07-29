@@ -1,0 +1,544 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   PaperTrade — Modal & Journal Styles
+   Extends the global design system (index.css)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Trade Entry Modal ─────────────────────────────────────────────── */
+
+.pt-modal {
+  max-width: 580px;
+  width: 96%;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.pt-modal-body {
+  padding: 0 var(--space-lg) var(--space-md);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.pt-modal-footer {
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+.pt-modal-ticker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.pt-modal-ticker-name {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+}
+
+.pt-modal-time {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* Direction selector */
+.pt-direction-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.pt-direction-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: var(--space-sm) var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-align: center;
+}
+
+.pt-direction-btn:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.pt-direction-btn.active-buy {
+  border-color: rgba(0, 230, 118, 0.5);
+  background: var(--green-dim);
+  color: var(--green);
+  box-shadow: 0 0 12px rgba(0, 230, 118, 0.1);
+}
+
+.pt-direction-btn.active-short {
+  border-color: rgba(255, 23, 68, 0.5);
+  background: var(--red-dim);
+  color: var(--red);
+  box-shadow: 0 0 12px rgba(255, 23, 68, 0.1);
+}
+
+.pt-direction-btn.active-long {
+  border-color: rgba(41, 121, 255, 0.5);
+  background: var(--blue-dim);
+  color: var(--blue);
+  box-shadow: 0 0 12px rgba(41, 121, 255, 0.1);
+}
+
+/* Field grid */
+.pt-field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.pt-field-grid-full {
+  grid-column: 1 / -1;
+}
+
+.pt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pt-field-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pt-auto-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  background: var(--blue-dim);
+  color: var(--blue);
+  border: 1px solid rgba(41, 121, 255, 0.2);
+  border-radius: var(--radius-full);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pt-override-badge {
+  background: var(--amber-dim);
+  color: var(--amber);
+  border-color: rgba(255, 171, 0, 0.2);
+}
+
+/* Fetch state */
+.pt-fetching-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-2xl);
+  color: var(--text-muted);
+}
+
+.pt-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: pt-spin 0.7s linear infinite;
+}
+
+@keyframes pt-spin {
+  to { transform: rotate(360deg); }
+}
+
+.pt-fetch-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--red-dim);
+  border: 1px solid rgba(255, 23, 68, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--red);
+  font-size: var(--text-xs);
+  margin-bottom: var(--space-md);
+}
+
+/* ── Live Calculation Panel ─────────────────────────────────────────── */
+
+.pt-calc-panel {
+  background: rgba(255, 171, 0, 0.05);
+  border: 1px solid rgba(255, 171, 0, 0.15);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-sm);
+  animation: fadeIn var(--transition-fast);
+}
+
+.pt-calc-panel-title {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--amber);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: var(--space-sm);
+}
+
+.pt-calc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+}
+
+.pt-calc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pt-calc-item-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pt-calc-item-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--amber);
+}
+
+.pt-calc-item-value.sl-value {
+  color: var(--red);
+}
+
+.pt-calc-item-value.fees-value {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+
+/* ── Journal Page ───────────────────────────────────────────────────── */
+
+.journal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.journal-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--amber), #ff9800);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.journal-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-tertiary);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.journal-tab {
+  padding: var(--space-xs) var(--space-md);
+  border-radius: calc(var(--radius-md) - 2px);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.journal-tab:hover {
+  color: var(--text-primary);
+  background: var(--surface);
+}
+
+.journal-tab.active {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Summary stats bar */
+.journal-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+@media (max-width: 700px) {
+  .journal-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.journal-stat-card {
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.journal-stat-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.journal-stat-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 800;
+}
+
+/* Table */
+.journal-table-wrapper {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+}
+
+.journal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.journal-table th {
+  background: var(--bg-tertiary);
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.journal-table td {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.journal-table tr:last-child td {
+  border-bottom: none;
+}
+
+.journal-table tr:hover td {
+  background: var(--surface-hover);
+}
+
+.journal-row-expanded > td {
+  background: rgba(41, 121, 255, 0.03) !important;
+}
+
+/* Expand panel */
+.journal-expand-panel {
+  background: rgba(15, 23, 42, 0.8);
+  border-top: 1px solid var(--border);
+  animation: slideDown 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.journal-expand-inner {
+  padding: var(--space-lg);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+}
+
+@media (max-width: 700px) {
+  .journal-expand-inner {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Indicator snapshot pills */
+.indicator-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+}
+
+.indicator-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.indicator-pill-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.indicator-pill-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Notes area */
+.journal-notes-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.journal-notes-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.journal-notes-textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.journal-notes-textarea:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(255, 171, 0, 0.1);
+}
+
+.journal-notes-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Close trade inline form */
+.journal-close-form {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-end;
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border);
+}
+
+.journal-close-form .pt-field {
+  flex: 1;
+}
+
+/* Direction badge colors */
+.dir-buy  { background: var(--green-dim); color: var(--green); border-color: rgba(0,230,118,0.2); }
+.dir-short{ background: var(--red-dim);   color: var(--red);   border-color: rgba(255,23,68,0.2);  }
+.dir-long { background: var(--blue-dim);  color: var(--blue);  border-color: rgba(41,121,255,0.2); }
+
+/* Status badge */
+.status-open   { background: var(--amber-dim);  color: var(--amber); border-color: rgba(255,171,0,0.2); }
+.status-closed { background: var(--surface);     color: var(--text-muted); border-color: var(--border); }
+
+/* PnL display */
+.pnl-positive { color: var(--green); font-family: var(--font-mono); font-weight: 700; }
+.pnl-negative { color: var(--red);   font-family: var(--font-mono); font-weight: 700; }
+.pnl-neutral  { color: var(--text-muted); font-family: var(--font-mono); }
+
+/* Expand toggle button */
+.expand-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.expand-toggle:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.expand-toggle.open {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-dim);
+}

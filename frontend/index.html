@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="TradingHelper — Educational NSE stock tracking dashboard with 4-indicator confluence engine, real-time charting, and break-even calculator." />
+    <title>TradingHelper — NSE Stock Dashboard</title>
+
+    <!--
+      ┌─────────────────────────────────────────────────────────────────────┐
+      │  GOOGLE OAUTH CLIENT ID                                             │
+      │  Replace the content value below with your real Google Client ID   │
+      │  from console.cloud.google.com → APIs & Services → Credentials     │
+      └─────────────────────────────────────────────────────────────────────┘
+    -->
+    <meta name="google-signin-client_id" content="492110538908-5t02ak1db6o3t1a9m6gs9120bqabkcbi.apps.googleusercontent.com" />
+
+    <!-- Google Identity Services SDK (loads the Sign-In button) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+

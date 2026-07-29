@@ -1,0 +1,109 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Page-level Styles
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+/* ── Form Styles ───────────────────────────────────────────────────────── */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-error {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--red-dim);
+  border: 1px solid rgba(255, 23, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--red);
+  font-size: var(--text-sm);
+  margin-top: var(--space-md);
+}
+
+.form-success {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--green-dim);
+  border: 1px solid rgba(0, 230, 118, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--green);
+  font-size: var(--text-sm);
+}
+
+/* ── Calculator Results ────────────────────────────────────────────────── */
+.calc-results {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border);
+}
+
+.calc-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-glass);
+  margin-bottom: var(--space-sm);
+}
+
+.calc-result-highlight {
+  border-color: rgba(41, 121, 255, 0.3);
+  background: var(--blue-dim);
+}
+
+.calc-charges-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-xs);
+}
+
+.calc-charge-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.calc-charge-total {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-sm);
+  margin-top: var(--space-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── Positions Page ────────────────────────────────────────────────────── */
+.positions-page {
+  max-width: 1200px;
+}
+
+/* ── Alerts Page ───────────────────────────────────────────────────────── */
+.alerts-page {
+  max-width: 900px;
+}
+
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .page-header {
+    flex-direction: column;
+  }
+}

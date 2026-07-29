@@ -1,0 +1,408 @@
+/**
+ * JournalPage — Paper Trading Journal view.
+ *
+ * Displays a filterable table of all paper trades with:
+ * - Expandable rows showing the indicator snapshot at entry
+ * - Inline close-trade form with exit price input
+ * - Reflection notes textarea with save button
+ * - Summary stats bar (total trades, open, net PnL, win rate)
+ */
+
+import { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  Target,
+  DollarSign,
+  Activity,
+  Save,
+  X,
+} from 'lucide-react';
+import { paperTradeApi } from '../api/client';
+import '../components/PaperTrade/PaperTrade.css';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const directionConfig = {
+  INTRADAY_BUY: { label: 'Intraday Buy', badge: 'dir-buy', icon: TrendingUp },
+  SHORT_SELL:   { label: 'Short Sell',   badge: 'dir-short', icon: TrendingDown },
+  LONG_TERM:    { label: 'Long-Term',    badge: 'dir-long',  icon: Clock },
+};
+
+function fmt(num, decimals = 2) {
+  if (num == null) return '—';
+  return Number(num).toFixed(decimals);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-IN', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function PnLDisplay({ value }) {
+  if (value == null) return <span className="pnl-neutral">—</span>;
+  const cls = value >= 0 ? 'pnl-positive' : 'pnl-negative';
+  return (
+    <span className={cls}>
+      {value >= 0 ? '+' : ''}₹{fmt(value)}
+    </span>
+  );
+}
+
+// ── Expanded Row ──────────────────────────────────────────────────────────────
+
+function ExpandedRow({ trade, colSpan, onClosed }) {
+  const queryClient = useQueryClient();
+  const [exitPrice, setExitPrice] = useState('');
+  const [notes, setNotes] = useState(trade.reflection_notes ?? '');
+  const [notesSaved, setNotesSaved] = useState(false);
+
+  const closeMutation = useMutation({
+    mutationFn: ({ id, price }) => paperTradeApi.close(id, price),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['paper-trades'] });
+      if (onClosed) onClosed();
+    },
+  });
+
+  const notesMutation = useMutation({
+    mutationFn: ({ id, notes: n }) => paperTradeApi.updateNotes(id, n),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['paper-trades'] });
+      setNotesSaved(true);
+      setTimeout(() => setNotesSaved(false), 2000);
+    },
+  });
+
+  const indicators = [
+    { label: 'RSI (14)',      value: fmt(trade.indicator_snapshot_rsi, 1) },
+    { label: 'MACD Line',    value: fmt(trade.indicator_snapshot_macd_fast, 4) },
+    { label: 'MACD Signal',  value: fmt(trade.indicator_snapshot_macd_signal, 4) },
+    { label: 'VWAP',         value: trade.indicator_snapshot_vwap != null ? `₹${fmt(trade.indicator_snapshot_vwap)}` : '—' },
+    { label: 'Supertrend',   value: `₹${fmt(trade.indicator_snapshot_supertrend)}` },
+    { label: 'Snapshot',     value: fmtDate(trade.entry_time) },
+  ];
+
+  return (
+    <tr className="journal-expand-panel">
+      <td colSpan={colSpan} style={{ padding: 0, border: 'none' }}>
+        <div className="journal-expand-inner">
+          {/* Left: Indicator snapshot */}
+          <div>
+            <div className="journal-notes-label" style={{ marginBottom: 12 }}>
+              <Activity size={12} /> Indicator Snapshot at Entry
+              {trade.is_manual_override && (
+                <span className="badge badge-amber" style={{ marginLeft: 8 }}>
+                  Manual Override
+                </span>
+              )}
+            </div>
+            <div className="indicator-snapshot-grid">
+              {indicators.map((ind) => (
+                <div key={ind.label} className="indicator-pill">
+                  <span className="indicator-pill-label">{ind.label}</span>
+                  <span className="indicator-pill-value">{ind.value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
+              <div className="indicator-pill">
+                <span className="indicator-pill-label">Break-Even</span>
+                <span className="indicator-pill-value" style={{ color: 'var(--amber)' }}>
+                  ₹{fmt(trade.calculated_break_even_price)}
+                </span>
+              </div>
+              <div className="indicator-pill">
+                <span className="indicator-pill-label">Stop-Loss</span>
+                <span className="indicator-pill-value" style={{ color: 'var(--red)' }}>
+                  ₹{fmt(trade.suggested_stop_loss_price)}
+                </span>
+              </div>
+            </div>
+
+            {/* Exit price — only for closed trades */}
+            {trade.status === 'CLOSED' && trade.exit_price != null && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+                <div className="indicator-pill">
+                  <span className="indicator-pill-label">Exit Price</span>
+                  <span className="indicator-pill-value" style={{ color: 'var(--green)' }}>
+                    ₹{fmt(trade.exit_price)}
+                  </span>
+                </div>
+                <div className="indicator-pill">
+                  <span className="indicator-pill-label">Exit Time</span>
+                  <span className="indicator-pill-value">{fmtDate(trade.exit_time)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Close trade form — only for open trades */}
+            {trade.status === 'OPEN' && (
+              <div className="journal-close-form">
+                <div className="pt-field">
+                  <label className="pt-field-label">Exit Price (₹)</label>
+                  <input
+                    className="input"
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="Enter exit price"
+                    value={exitPrice}
+                    onChange={(e) => setExitPrice(e.target.value)}
+                  />
+                </div>
+                <button
+                  className="btn btn-danger"
+                  style={{ marginBottom: 0 }}
+                  disabled={!exitPrice || closeMutation.isPending}
+                  onClick={() =>
+                    closeMutation.mutate({ id: trade.id, price: parseFloat(exitPrice) })
+                  }
+                >
+                  {closeMutation.isPending ? 'Closing…' : 'Close Trade'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Reflection notes */}
+          <div className="journal-notes-section">
+            <div className="journal-notes-label">
+              <BookOpen size={12} /> Reflection Notes
+            </div>
+            <textarea
+              className="journal-notes-textarea"
+              placeholder={
+                '📝 What did you notice before entering?\n' +
+                '📐 Did you follow your rules?\n' +
+                '⚠️ What would you do differently?'
+              }
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              {notesSaved && (
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--green)', alignSelf: 'center' }}>
+                  ✓ Saved
+                </span>
+              )}
+              <button
+                className="btn btn-sm"
+                style={{ background: 'var(--amber-dim)', borderColor: 'rgba(255,171,0,0.3)', color: 'var(--amber)' }}
+                disabled={notesMutation.isPending}
+                onClick={() => notesMutation.mutate({ id: trade.id, notes })}
+              >
+                <Save size={12} />
+                {notesMutation.isPending ? 'Saving…' : 'Save Notes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
+export default function JournalPage() {
+  const [tab, setTab] = useState('ALL'); // ALL | OPEN | CLOSED
+  const [expandedId, setExpandedId] = useState(null);
+
+  const { data: trades = [], isLoading } = useQuery({
+    queryKey: ['paper-trades', tab],
+    queryFn: () =>
+      paperTradeApi
+        .list(tab === 'ALL' ? {} : { status: tab })
+        .then((r) => r.data),
+    refetchInterval: 30000,
+  });
+
+  // ── Stats ─────────────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const all = trades;
+    const closed = all.filter((t) => t.status === 'CLOSED');
+    const open = all.filter((t) => t.status === 'OPEN');
+    const totalNetPnL = closed.reduce((s, t) => s + (t.pnl_net_after_fees ?? 0), 0);
+    const winners = closed.filter((t) => (t.pnl_net_after_fees ?? 0) > 0).length;
+    const winRate = closed.length > 0 ? ((winners / closed.length) * 100).toFixed(0) : '—';
+    return { total: all.length, open: open.length, totalNetPnL, winRate, closedCount: closed.length };
+  }, [trades]);
+
+  const toggleExpand = (id) => setExpandedId((prev) => (prev === id ? null : id));
+
+  const COLUMNS = 10;
+
+  return (
+    <div style={{ padding: 'var(--space-lg)' }}>
+      {/* Header */}
+      <div className="journal-header">
+        <h1 className="journal-title">
+          <BookOpen size={26} strokeWidth={2} />
+          Paper Trading Journal
+        </h1>
+
+        {/* Tabs */}
+        <div className="journal-tabs">
+          {['ALL', 'OPEN', 'CLOSED'].map((t) => (
+            <button
+              key={t}
+              className={`journal-tab ${tab === t ? 'active' : ''}`}
+              onClick={() => { setTab(t); setExpandedId(null); }}
+            >
+              {t === 'ALL' ? 'All Trades' : t === 'OPEN' ? `Open (${stats.open})` : `Closed (${stats.closedCount})`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Stats bar */}
+      <div className="journal-stats">
+        <div className="journal-stat-card">
+          <span className="journal-stat-label"><Activity size={11} style={{ marginRight: 4 }} />Total Trades</span>
+          <span className="journal-stat-value" style={{ color: 'var(--text-primary)' }}>
+            {stats.total}
+          </span>
+        </div>
+        <div className="journal-stat-card">
+          <span className="journal-stat-label"><Target size={11} style={{ marginRight: 4 }} />Open Positions</span>
+          <span className="journal-stat-value" style={{ color: 'var(--amber)' }}>
+            {stats.open}
+          </span>
+        </div>
+        <div className="journal-stat-card">
+          <span className="journal-stat-label"><DollarSign size={11} style={{ marginRight: 4 }} />Net PnL (Closed)</span>
+          <span
+            className="journal-stat-value"
+            style={{ color: stats.totalNetPnL >= 0 ? 'var(--green)' : 'var(--red)' }}
+          >
+            {stats.closedCount > 0
+              ? `${stats.totalNetPnL >= 0 ? '+' : ''}₹${Math.abs(stats.totalNetPnL).toFixed(2)}`
+              : '—'}
+          </span>
+        </div>
+        <div className="journal-stat-card">
+          <span className="journal-stat-label"><TrendingUp size={11} style={{ marginRight: 4 }} />Win Rate</span>
+          <span
+            className="journal-stat-value"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {stats.winRate}{stats.winRate !== '—' ? '%' : ''}
+          </span>
+        </div>
+      </div>
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="empty-state glass-card" style={{ padding: 48 }}>
+          <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--blue)', borderRadius: '50%', animation: 'pt-spin 0.7s linear infinite' }} />
+          <p>Loading journal…</p>
+        </div>
+      ) : trades.length === 0 ? (
+        <div className="empty-state glass-card" style={{ padding: 56 }}>
+          <BookOpen size={40} strokeWidth={1.2} />
+          <p style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>No trades logged yet</p>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', maxWidth: 340, textAlign: 'center' }}>
+            Click the&nbsp;<strong>📝 Paper Trade</strong>&nbsp;button on any watchlist stock to log your first educational trade.
+          </p>
+        </div>
+      ) : (
+        <div className="journal-table-wrapper">
+          <table className="journal-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Ticker</th>
+                <th>Direction</th>
+                <th>Qty</th>
+                <th>Entry ₹</th>
+                <th>Exit ₹</th>
+                <th>Break-Even ₹</th>
+                <th>SL ₹</th>
+                <th>Net PnL</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trades.map((trade) => {
+                const dcfg = directionConfig[trade.trade_direction] ?? {};
+                const isExpanded = expandedId === trade.id;
+                const DirIcon = dcfg.icon ?? Activity;
+
+                return (
+                  <>
+                    <tr
+                      key={trade.id}
+                      className={isExpanded ? 'journal-row-expanded' : ''}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => toggleExpand(trade.id)}
+                    >
+                      <td style={{ width: 32, paddingRight: 0 }}>
+                        <button className={`expand-toggle ${isExpanded ? 'open' : ''}`}>
+                          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                        </button>
+                      </td>
+                      <td>
+                        <span className="mono" style={{ fontWeight: 700 }}>{trade.ticker}</span>
+                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                          {fmtDate(trade.entry_time)}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${dcfg.badge ?? ''}`}>
+                          <DirIcon size={10} />
+                          {dcfg.label ?? trade.trade_direction}
+                        </span>
+                      </td>
+                      <td className="mono">{trade.quantity}</td>
+                      <td className="mono">₹{fmt(trade.entry_price)}</td>
+                      <td className="mono" style={{ color: trade.exit_price != null ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                        {trade.exit_price != null ? `₹${fmt(trade.exit_price)}` : '—'}
+                      </td>
+                      <td className="mono" style={{ color: 'var(--amber)' }}>
+                        ₹{fmt(trade.calculated_break_even_price)}
+                      </td>
+                      <td className="mono" style={{ color: 'var(--red)' }}>
+                        ₹{fmt(trade.suggested_stop_loss_price)}
+                      </td>
+                      <td>
+                        <PnLDisplay value={trade.pnl_net_after_fees} />
+                        {trade.pnl_gross != null && (
+                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                            gross ₹{fmt(trade.pnl_gross)}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`badge ${trade.status === 'OPEN' ? 'status-open' : 'status-closed'}`}>
+                          {trade.status}
+                        </span>
+                      </td>
+                    </tr>
+
+                    {isExpanded && (
+                      <ExpandedRow
+                        key={`${trade.id}-expand`}
+                        trade={trade}
+                        colSpan={COLUMNS}
+                        onClosed={() => setExpandedId(null)}
+                      />
+                    )}
+                  </>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

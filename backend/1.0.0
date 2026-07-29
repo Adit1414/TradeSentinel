@@ -1,0 +1,3 @@
+Collecting yfinance
+  Downloading yfinance-1.5.2-py2.py3-none-any.whl.metadata (6.2 kB)
+Requirement already satisfied: pandas in C:\Users\Aditya\anaconda3\envs\ai\Lib\site-packages (2.1.4)
