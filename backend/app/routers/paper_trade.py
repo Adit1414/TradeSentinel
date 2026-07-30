@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import PaperTrade, User
+from app.models import PaperTrade, User, _utcnow
 from app.schemas import (
     ClosePaperTradeRequest,
     NotesUpdateRequest,
@@ -104,7 +104,7 @@ async def open_paper_trade(
         trade_direction=payload.trade_direction,
         quantity=payload.quantity,
         status="OPEN",
-        entry_time=datetime.now(timezone.utc),
+        entry_time=_utcnow(),
         entry_price=payload.entry_price,
         is_manual_override=payload.is_manual_override,
         # Indicator snapshot
@@ -167,7 +167,7 @@ async def close_paper_trade(
     )
 
     trade.exit_price = payload.exit_price
-    trade.exit_time = datetime.now(timezone.utc)
+    trade.exit_time = _utcnow()
     trade.status = "CLOSED"
     trade.pnl_gross = pnl["pnl_gross"]
     trade.pnl_net_after_fees = pnl["pnl_net_after_fees"]

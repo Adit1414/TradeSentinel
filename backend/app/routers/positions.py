@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Position, User
+from app.models import Position, User, _utcnow
 from app.schemas import (
     PositionCreate,
     PositionUpdate,
@@ -115,7 +115,7 @@ async def update_position(
 
     # If closing the position, set closed_at
     if update_data.get("status") == "CLOSED":
-        db_pos.closed_at = datetime.now(timezone.utc)
+        db_pos.closed_at = _utcnow()
 
     for key, value in update_data.items():
         setattr(db_pos, key, value)
