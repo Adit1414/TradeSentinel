@@ -201,6 +201,7 @@ async def _check_single_stock(
         try:
             async with _get_session_maker()() as session:
                 alert = AlertHistory(
+                    user_id=item.user_id,
                     ticker=item.ticker,
                     mode=mode,
                     alert_type=alert_type,

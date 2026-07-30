@@ -125,6 +125,7 @@ async def _fire_exit_alert(
 
     try:
         alert = AlertHistory(
+            user_id=trade.user_id,
             ticker=trade.ticker,
             mode=_trade_mode(trade),
             alert_type=alert_category,
