@@ -2,6 +2,9 @@
 
 TradeSentinel is a comprehensive trading platform featuring interactive charting, paper trading, technical analysis, and real-time market data. Built with a modern tech stack, it provides an intuitive interface for both beginner and experienced traders to practice trading strategies, analyze charts, and track their performance without financial risk.
 
+> 📚 **Looking for deep-dive technical documentation?**  
+> For end-to-end architecture, API reference, database schema/ERD, 4-indicator confluence engine details, background scanner flows, and deployment guides, check out the comprehensive [TradeSentinel_Complete_Documentation.md](./TradeSentinel_Complete_Documentation.md).
+
 ## 🌟 Key Features
 
 *   **🔒 Secure Authentication System**: User registration and login using robust JWT-based authentication.
@@ -103,7 +106,8 @@ TradeSentinel/
 │
 ├── .gitignore
 ├── Makefile
-└── run.sh                    # Helper script to launch the app
+├── run.sh                    # Helper script to launch the app
+└── TradeSentinel_Complete_Documentation.md # End-to-end technical documentation
 ```
 
 ## 📝 License
