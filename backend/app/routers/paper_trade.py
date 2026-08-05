@@ -95,6 +95,7 @@ async def open_paper_trade(
         vwap=payload.snapshot_vwap,
         supertrend=payload.snapshot_supertrend,
         ema_200=payload.snapshot_ema_200,
+        weekly_sma_200=payload.snapshot_weekly_sma_200,
     )
 
     trade = PaperTrade(
@@ -107,12 +108,17 @@ async def open_paper_trade(
         entry_time=_utcnow(),
         entry_price=payload.entry_price,
         is_manual_override=payload.is_manual_override,
-        # Indicator snapshot
+        # Indicator snapshot (intraday / short-sell fields)
         indicator_snapshot_rsi=payload.snapshot_rsi,
         indicator_snapshot_macd_fast=payload.snapshot_macd_fast,
         indicator_snapshot_macd_signal=payload.snapshot_macd_signal,
         indicator_snapshot_vwap=payload.snapshot_vwap,
         indicator_snapshot_supertrend=payload.snapshot_supertrend,
+        # Weekly long-term indicator snapshot (None for non-LONG_TERM trades)
+        indicator_snapshot_weekly_sma_200=payload.snapshot_weekly_sma_200,
+        indicator_snapshot_weekly_rsi=payload.snapshot_weekly_rsi,
+        indicator_snapshot_weekly_macd=payload.snapshot_weekly_macd,
+        indicator_snapshot_weekly_bb_lower=payload.snapshot_weekly_bb_lower,
         # Calculated targets
         calculated_break_even_price=be_data["break_even_price"],
         suggested_stop_loss_price=be_data["suggested_stop_loss_price"],

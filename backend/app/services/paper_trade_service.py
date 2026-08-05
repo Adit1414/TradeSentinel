@@ -19,21 +19,22 @@ logger = logging.getLogger(__name__)
 
 def fetch_snapshot(ticker: str, mode: str = "intraday") -> Optional[dict]:
     """
-    Fetch the latest OHLCV data and compute all 4 indicators for a ticker.
+    Fetch the latest OHLCV data and compute all indicators for a ticker.
 
     Args:
         ticker: NSE stock symbol (e.g. "RELIANCE").
         mode: "intraday" | "short_selling" | "long_term" — determines data
-              interval, period, and which overlay indicator is calculated.
+              interval, period, and which indicator pipeline is used.
+              long_term uses weekly candles (1wk, 5y) for macro indicators.
 
     Returns:
         Dict with price and indicator snapshot, or None on failure.
     """
-    # Choose interval/period based on mode (mirrors market_data router)
+    # Choose interval/period based on mode
     if mode in ("intraday", "short_selling"):
         interval, period = "5m", "5d"
-    else:
-        interval, period = "1d", "1y"
+    else:  # long_term — weekly candles, 5 years for 200-W SMA accuracy
+        interval, period = "1wk", "5y"
 
     df = fetch_ohlcv(ticker, interval=interval, period=period, use_cache=False)
     if df.empty:
@@ -47,6 +48,29 @@ def fetch_snapshot(ticker: str, mode: str = "intraday") -> Optional[dict]:
 
     clean_ticker = ticker.upper().replace(".NS", "")
 
+    if mode == "long_term":
+        # Return weekly macro indicator snapshot for Long-Term trades
+        return {
+            "ticker": clean_ticker,
+            "mode": mode,
+            "price": round(result.price, 2),
+            # Standard fields (still populated for SnapshotResponse compatibility)
+            "rsi": round(result.rsi, 2),
+            "macd_fast": round(result.macd_line, 4),
+            "macd_signal": round(result.macd_signal, 4),
+            "vwap": None,
+            "supertrend": 0.0,
+            "ema_200": None,
+            # Weekly indicator fields
+            "weekly_sma_200": round(result.weekly_sma_200, 2) if result.weekly_sma_200 is not None else None,
+            "weekly_rsi": round(result.rsi, 2),
+            "weekly_macd_line": round(result.macd_line, 4),
+            "weekly_macd_signal": round(result.macd_signal, 4),
+            "weekly_bb_lower": round(result.weekly_bb_lower, 2) if result.weekly_bb_lower is not None else None,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    # Intraday / Short-Selling snapshot
     return {
         "ticker": clean_ticker,
         "mode": mode,
@@ -70,6 +94,7 @@ def calculate_break_even_and_sl(
     vwap: Optional[float] = None,
     supertrend: Optional[float] = None,
     ema_200: Optional[float] = None,
+    weekly_sma_200: Optional[float] = None,
 ) -> dict:
     """
     Calculate the exact NSE-fee-adjusted break-even price and a suggested
@@ -120,8 +145,11 @@ def calculate_break_even_and_sl(
         total_fees = entry_charges["total"] + exit_charges["total"]
         break_even_price = entry_price + (total_fees / quantity)
 
-        # SL: prefer EMA 200; fallback to 2% below entry
-        if ema_200 is not None:
+        # SL: prefer weekly 200-W SMA (macro support level);
+        #     fallback to legacy ema_200; last resort: 2% below entry
+        if weekly_sma_200 is not None:
+            suggested_sl = weekly_sma_200
+        elif ema_200 is not None:
             suggested_sl = ema_200
         else:
             suggested_sl = entry_price * 0.98

@@ -169,51 +169,82 @@ def _check_short_selling(ind: IndicatorResult) -> ConfluenceResult:
 
 def _check_long_term(ind: IndicatorResult) -> ConfluenceResult:
     """
-    Long-Term (Delivery) confluence on daily timeframe:
-    1. Price > 200 EMA
-    2. Supertrend bullish (direction == 1)
-    3. RSI > 50, rising, and not overbought (< 70)
-    4. MACD bullish crossover on daily
+    Long-Term (Delivery) macro "Buy-the-Dip" confluence on weekly timeframe.
+
+    Fires a LONG-TERM VALUE ALERT when at least 3 of the following 4
+    weekly conditions align (3-of-4 threshold):
+
+    1. Near 200-Week SMA  — price within [SMA*0.95, SMA*1.03]
+    2. Weekly RSI ≤ 42    — severely discounted zone (not overbought)
+    3. Weekly MACD Recovery — MACD > Signal (bullish cross)
+                              OR histogram rising from negative territory
+    4. Weekly BB Lower Touch — price ≤ Lower Bollinger Band * 1.02
     """
     checks = {}
     details = {}
 
-    # 1. 200 EMA check
-    if ind.ema_200 is not None:
-        checks["ema_200"] = ind.price > ind.ema_200
-        details["ema_200"] = (
-            f"Price ₹{ind.price:.2f} {'>' if checks['ema_200'] else '<='} "
-            f"200 EMA ₹{ind.ema_200:.2f}"
+    # 1. 200-Week SMA Proximity check
+    if ind.weekly_sma_200 is not None and ind.weekly_sma_200 > 0:
+        near_sma = (ind.price <= ind.weekly_sma_200 * 1.03 and
+                    ind.price >= ind.weekly_sma_200 * 0.95)
+        checks["weekly_sma_200"] = near_sma
+        pct_diff = ((ind.price - ind.weekly_sma_200) / ind.weekly_sma_200) * 100
+        details["weekly_sma_200"] = (
+            f"Price ₹{ind.price:.2f} | 200-W SMA ₹{ind.weekly_sma_200:.2f} "
+            f"({pct_diff:+.1f}%) — "
+            f"{'✓ Near major support' if near_sma else '✗ Outside proximity zone'}"
         )
     else:
-        checks["ema_200"] = False
-        details["ema_200"] = "200 EMA not available (need 200+ daily candles)"
+        checks["weekly_sma_200"] = False
+        details["weekly_sma_200"] = "200-W SMA not available (need 200+ weekly candles)"
 
-    # 2. Supertrend check
-    checks["supertrend"] = ind.supertrend_direction == 1
-    details["supertrend"] = (
-        f"Supertrend {'Bullish (Green)' if checks['supertrend'] else 'Bearish (Red)'} "
-        f"at ₹{ind.supertrend_value:.2f}"
+    # 2. Weekly RSI ≤ 42 (severely discounted / oversold zone)
+    rsi_discounted = ind.rsi <= 42
+    checks["weekly_rsi"] = rsi_discounted
+    details["weekly_rsi"] = (
+        f"Weekly RSI {ind.rsi:.1f} — "
+        f"{'✓ Discounted zone (≤42)' if rsi_discounted else f'✗ Not discounted ({ind.rsi:.1f} > 42)'}"
     )
 
-    # 3. RSI check — above 50, rising, not overbought
-    rsi_ok = 50 < ind.rsi < 70
-    checks["rsi"] = rsi_ok and ind.rsi_rising
-    details["rsi"] = (
-        f"RSI {ind.rsi:.1f} ({'rising' if ind.rsi_rising else 'falling'}) — "
-        f"{'in zone 50-70' if rsi_ok else 'outside zone 50-70'}"
+    # 3. Weekly MACD Recovery — bullish cross OR histogram rising from negative
+    macd_bullish_cross = ind.macd_line > ind.macd_signal
+    hist_rising_from_negative = (
+        ind.macd_histogram > ind.macd_histogram_prev and
+        ind.macd_histogram_prev < 0
+    )
+    macd_recovery = macd_bullish_cross or hist_rising_from_negative
+    checks["weekly_macd"] = macd_recovery
+    if macd_bullish_cross:
+        macd_reason = "✓ MACD bullish crossover"
+    elif hist_rising_from_negative:
+        macd_reason = "✓ Histogram rising from negative (momentum shift)"
+    else:
+        macd_reason = "✗ No bullish recovery signal"
+    details["weekly_macd"] = (
+        f"Weekly MACD {ind.macd_line:.4f} / Signal {ind.macd_signal:.4f} — {macd_reason}"
     )
 
-    # 4. MACD bullish state
-    checks["macd"] = ind.macd_line > ind.macd_signal and ind.macd_histogram > 0
-    details["macd"] = (
-        f"MACD {'Bullish ✓' if checks['macd'] else 'Not bullish'} "
-        f"(MACD: {ind.macd_line:.4f}, Signal: {ind.macd_signal:.4f})"
-    )
+    # 4. Weekly Bollinger Lower Band Touch — price ≤ Lower Band * 1.02
+    if ind.weekly_bb_lower is not None and ind.weekly_bb_lower > 0:
+        bb_touch = ind.price <= ind.weekly_bb_lower * 1.02
+        checks["weekly_bb_lower"] = bb_touch
+        details["weekly_bb_lower"] = (
+            f"Price ₹{ind.price:.2f} | Lower BB ₹{ind.weekly_bb_lower:.2f} — "
+            f"{'✓ At/near lower band (mean-reversion zone)' if bb_touch else '✗ Above lower Bollinger Band'}"
+        )
+    else:
+        checks["weekly_bb_lower"] = False
+        details["weekly_bb_lower"] = "Bollinger Bands not available (need 20+ weekly candles)"
 
-    is_aligned = all(checks.values())
+    # 3-of-4 threshold (macro confluence — not all 4 required)
+    aligned_count = sum(checks.values())
+    is_aligned = aligned_count >= 3
+
     if is_aligned:
-        logger.info(f"🎯 LONG-TERM CONFLUENCE detected! Price: ₹{ind.price:.2f}")
+        logger.info(
+            f"🎯 LONG-TERM VALUE ALERT! Price: ₹{ind.price:.2f} "
+            f"| {aligned_count}/4 weekly conditions met"
+        )
 
     return ConfluenceResult(
         is_aligned=is_aligned,

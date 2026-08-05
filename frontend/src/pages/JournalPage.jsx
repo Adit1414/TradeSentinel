@@ -81,14 +81,26 @@ function ExpandedRow({ trade, colSpan, onClosed }) {
     },
   });
 
-  const indicators = [
-    { label: 'RSI (14)',      value: fmt(trade.indicator_snapshot_rsi, 1) },
-    { label: 'MACD Line',    value: fmt(trade.indicator_snapshot_macd_fast, 4) },
-    { label: 'MACD Signal',  value: fmt(trade.indicator_snapshot_macd_signal, 4) },
-    { label: 'VWAP',         value: trade.indicator_snapshot_vwap != null ? `₹${fmt(trade.indicator_snapshot_vwap)}` : '—' },
-    { label: 'Supertrend',   value: `₹${fmt(trade.indicator_snapshot_supertrend)}` },
-    { label: 'Snapshot',     value: fmtDate(trade.entry_time) },
-  ];
+  const isLongTerm = trade.trade_direction === 'LONG_TERM';
+
+  // Conditionally show weekly (Long-Term) or intraday indicator pills
+  const indicators = isLongTerm
+    ? [
+        { label: '200-W SMA',      value: trade.indicator_snapshot_weekly_sma_200 != null ? `₹${fmt(trade.indicator_snapshot_weekly_sma_200)}` : '—', highlight: 'blue' },
+        { label: 'Weekly RSI (14)', value: trade.indicator_snapshot_weekly_rsi != null ? fmt(trade.indicator_snapshot_weekly_rsi, 1) : '—', highlight: trade.indicator_snapshot_weekly_rsi <= 42 ? 'green' : 'default' },
+        { label: 'Weekly MACD',    value: trade.indicator_snapshot_weekly_macd != null ? fmt(trade.indicator_snapshot_weekly_macd, 4) : '—' },
+        { label: 'Weekly BB Lower', value: trade.indicator_snapshot_weekly_bb_lower != null ? `₹${fmt(trade.indicator_snapshot_weekly_bb_lower)}` : '—', highlight: 'amber' },
+        { label: 'MACD Signal',    value: fmt(trade.indicator_snapshot_macd_signal, 4) },
+        { label: 'Snapshot',       value: fmtDate(trade.entry_time) },
+      ]
+    : [
+        { label: 'RSI (14)',      value: fmt(trade.indicator_snapshot_rsi, 1) },
+        { label: 'MACD Line',    value: fmt(trade.indicator_snapshot_macd_fast, 4) },
+        { label: 'MACD Signal',  value: fmt(trade.indicator_snapshot_macd_signal, 4) },
+        { label: 'VWAP',         value: trade.indicator_snapshot_vwap != null ? `₹${fmt(trade.indicator_snapshot_vwap)}` : '—' },
+        { label: 'Supertrend',   value: `₹${fmt(trade.indicator_snapshot_supertrend)}` },
+        { label: 'Snapshot',     value: fmtDate(trade.entry_time) },
+      ];
 
   return (
     <tr className="journal-expand-panel">
@@ -105,12 +117,27 @@ function ExpandedRow({ trade, colSpan, onClosed }) {
               )}
             </div>
             <div className="indicator-snapshot-grid">
-              {indicators.map((ind) => (
-                <div key={ind.label} className="indicator-pill">
-                  <span className="indicator-pill-label">{ind.label}</span>
-                  <span className="indicator-pill-value">{ind.value}</span>
+              {/* Section label for Long-Term weekly indicators */}
+              {isLongTerm && (
+                <div style={{ gridColumn: '1 / -1', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: 'var(--blue)' }}>📊</span> Weekly Macro Indicators
                 </div>
-              ))}
+              )}
+              {indicators.map((ind) => {
+                const valueColor =
+                  ind.highlight === 'green' ? 'var(--green)' :
+                  ind.highlight === 'amber' ? 'var(--amber)' :
+                  ind.highlight === 'blue'  ? 'var(--blue)'  :
+                  undefined;
+                return (
+                  <div key={ind.label} className="indicator-pill">
+                    <span className="indicator-pill-label">{ind.label}</span>
+                    <span className="indicator-pill-value" style={valueColor ? { color: valueColor } : undefined}>
+                      {ind.value}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>

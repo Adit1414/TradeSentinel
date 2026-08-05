@@ -148,6 +148,11 @@ export default function PaperTradeModal({ ticker, initialMode = 'intraday', onCl
     vwap: '',
     supertrend: '',
     ema200: '',
+    // Weekly long-term fields
+    weeklySma200: '',
+    weeklyRsi: '',
+    weeklyMacd: '',
+    weeklyBbLower: '',
   });
 
   // Track which fields came from auto-fetch (to detect overrides)
@@ -169,15 +174,39 @@ export default function PaperTradeModal({ ticker, initialMode = 'intraday', onCl
     setFetchError('');
     try {
       const { data } = await paperTradeApi.snapshot(ticker, cfg.mode);
-      const fetched = {
-        price:       String(data.price ?? ''),
-        rsi:         String(data.rsi ?? ''),
-        macdFast:    String(data.macd_fast ?? ''),
-        macdSignal:  String(data.macd_signal ?? ''),
-        vwap:        String(data.vwap ?? ''),
-        supertrend:  String(data.supertrend ?? ''),
-        ema200:      String(data.ema_200 ?? ''),
-      };
+
+      let fetched;
+      if (direction === 'LONG_TERM') {
+        // Map weekly indicator fields from the snapshot
+        fetched = {
+          price:        String(data.price ?? ''),
+          rsi:          String(data.rsi ?? ''),
+          macdFast:     String(data.macd_fast ?? ''),
+          macdSignal:   String(data.macd_signal ?? ''),
+          vwap:         '',
+          supertrend:   '',
+          ema200:       '',
+          weeklySma200: String(data.weekly_sma_200 ?? ''),
+          weeklyRsi:    String(data.weekly_rsi ?? ''),
+          weeklyMacd:   String(data.weekly_macd_line ?? ''),
+          weeklyBbLower: String(data.weekly_bb_lower ?? ''),
+        };
+      } else {
+        fetched = {
+          price:       String(data.price ?? ''),
+          rsi:         String(data.rsi ?? ''),
+          macdFast:    String(data.macd_fast ?? ''),
+          macdSignal:  String(data.macd_signal ?? ''),
+          vwap:        String(data.vwap ?? ''),
+          supertrend:  String(data.supertrend ?? ''),
+          ema200:      String(data.ema_200 ?? ''),
+          weeklySma200: '',
+          weeklyRsi:   '',
+          weeklyMacd:  '',
+          weeklyBbLower: '',
+        };
+      }
+
       autoFetched.current = fetched;
       setFields((prev) => ({ ...prev, ...fetched }));
       setOverriddenFields(new Set());
@@ -200,7 +229,8 @@ export default function PaperTradeModal({ ticker, initialMode = 'intraday', onCl
       fields.quantity,
       fields.vwap,
       fields.supertrend,
-      fields.ema200,
+      // For LONG_TERM: use the weekly 200-SMA as the SL anchor
+      direction === 'LONG_TERM' ? fields.weeklySma200 : fields.ema200,
     );
     setLiveCalc(result);
   }, [direction, fields]);
@@ -231,6 +261,9 @@ export default function PaperTradeModal({ ticker, initialMode = 'intraday', onCl
 
   const handleConfirm = () => {
     if (!fields.price || !fields.quantity) return;
+
+    const isLongTerm = direction === 'LONG_TERM';
+
     openMutation.mutate({
       ticker,
       trade_direction: direction,
@@ -239,9 +272,14 @@ export default function PaperTradeModal({ ticker, initialMode = 'intraday', onCl
       snapshot_rsi: parseFloat(fields.rsi) || 0,
       snapshot_macd_fast: parseFloat(fields.macdFast) || 0,
       snapshot_macd_signal: parseFloat(fields.macdSignal) || 0,
-      snapshot_vwap: parseFloat(fields.vwap) || null,
-      snapshot_supertrend: parseFloat(fields.supertrend) || 0,
-      snapshot_ema_200: parseFloat(fields.ema200) || null,
+      snapshot_vwap: isLongTerm ? null : (parseFloat(fields.vwap) || null),
+      snapshot_supertrend: isLongTerm ? 0 : (parseFloat(fields.supertrend) || 0),
+      snapshot_ema_200: isLongTerm ? null : (parseFloat(fields.ema200) || null),
+      // Weekly long-term indicator snapshot
+      snapshot_weekly_sma_200: isLongTerm ? (parseFloat(fields.weeklySma200) || null) : null,
+      snapshot_weekly_rsi: isLongTerm ? (parseFloat(fields.weeklyRsi) || null) : null,
+      snapshot_weekly_macd: isLongTerm ? (parseFloat(fields.weeklyMacd) || null) : null,
+      snapshot_weekly_bb_lower: isLongTerm ? (parseFloat(fields.weeklyBbLower) || null) : null,
       is_manual_override: overriddenFields.size > 0,
     });
   };
@@ -350,12 +388,28 @@ export default function PaperTradeModal({ ticker, initialMode = 'intraday', onCl
                     onChange={(e) => handleChange('quantity', e.target.value)}
                   />
                 </div>
-                {renderField('rsi', 'RSI (14)', '0.00')}
-                {renderField('vwap', direction === 'LONG_TERM' ? 'EMA 200' : 'VWAP', '—')}
-                {renderField('macdFast', 'MACD Line', '0.0000')}
-                {renderField('macdSignal', 'MACD Signal', '0.0000')}
-                {renderField('supertrend', 'Supertrend', '0.00')}
-                {direction === 'LONG_TERM' && renderField('ema200', 'EMA 200', '—')}
+
+                {direction === 'LONG_TERM' ? (
+                  // ── Weekly macro indicator fields for Long-Term ──
+                  <>
+                    {renderField('weeklySma200', '200-W SMA (₹)', '—')}
+                    {renderField('weeklyRsi', 'Weekly RSI (14)', '—')}
+                    {renderField('weeklyMacd', 'Weekly MACD Line', '—')}
+                    {renderField('weeklyBbLower', 'Weekly BB Lower (₹)', '—')}
+                    {renderField('macdFast', 'MACD Line (raw)', '0.0000')}
+                    {renderField('macdSignal', 'MACD Signal (raw)', '0.0000')}
+                  </>
+                ) : (
+                  // ── Intraday / Short-Sell indicator fields ──
+                  <>
+                    {renderField('rsi', 'RSI (14)', '0.00')}
+                    {renderField('vwap', 'VWAP', '—')}
+                    {renderField('macdFast', 'MACD Line', '0.0000')}
+                    {renderField('macdSignal', 'MACD Signal', '0.0000')}
+                    {renderField('supertrend', 'Supertrend', '0.00')}
+                    {renderField('ema200', 'EMA 200', '—')}
+                  </>
+                )}
               </div>
 
               {/* Live calculation panel */}

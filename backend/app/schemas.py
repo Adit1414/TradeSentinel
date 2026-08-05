@@ -171,6 +171,12 @@ class SnapshotResponse(BaseModel):
     supertrend: float
     ema_200: float | None = None
     timestamp: datetime
+    # Weekly indicators (populated only when mode="long_term")
+    weekly_sma_200: float | None = None
+    weekly_rsi: float | None = None
+    weekly_macd_line: float | None = None
+    weekly_macd_signal: float | None = None
+    weekly_bb_lower: float | None = None
 
 
 class OpenPaperTradeRequest(BaseModel):
@@ -189,6 +195,11 @@ class OpenPaperTradeRequest(BaseModel):
     snapshot_supertrend: float
     snapshot_ema_200: float | None = None
     is_manual_override: bool = False
+    # Weekly long-term indicator snapshot (only for LONG_TERM direction)
+    snapshot_weekly_sma_200: float | None = None
+    snapshot_weekly_rsi: float | None = None
+    snapshot_weekly_macd: float | None = None
+    snapshot_weekly_bb_lower: float | None = None
 
 
 class ClosePaperTradeRequest(BaseModel):
@@ -218,6 +229,11 @@ class PaperTradeResponse(BaseModel):
     indicator_snapshot_macd_signal: float
     indicator_snapshot_vwap: float | None = None
     indicator_snapshot_supertrend: float
+    # Weekly long-term indicator snapshots (None for intraday / short-sell trades)
+    indicator_snapshot_weekly_sma_200: float | None = None
+    indicator_snapshot_weekly_rsi: float | None = None
+    indicator_snapshot_weekly_macd: float | None = None
+    indicator_snapshot_weekly_bb_lower: float | None = None
     calculated_break_even_price: float
     suggested_stop_loss_price: float
     pnl_gross: float | None = None

@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.database import init_db
+from app.database import init_db, migrate_db
 from app.routers import watchlist, market_data, positions, alerts, paper_trade, auth
 from app.services.scanner import create_scheduler
 
@@ -33,6 +33,10 @@ async def lifespan(app: FastAPI):
     # Initialize database tables
     logger.info("Initializing database...")
     await init_db()
+
+    # Apply incremental schema migrations (idempotent — safe on every start)
+    logger.info("Running schema migrations...")
+    await migrate_db()
 
     # Start the background scanner
     logger.info("Starting background scanner...")

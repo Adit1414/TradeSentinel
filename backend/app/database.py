@@ -1,5 +1,6 @@
 """SQLAlchemy async database engine and session setup."""
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -70,3 +71,43 @@ async def init_db():
     engine = _get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+async def migrate_db():
+    """Apply incremental schema migrations for SQLite.
+
+    Uses PRAGMA table_info to check for column existence before issuing
+    ALTER TABLE, making each migration fully idempotent and safe to re-run.
+    This function is a no-op for non-SQLite backends (Postgres handles
+    schema via Alembic or manual migrations).
+    """
+    import logging
+    log = logging.getLogger(__name__)
+
+    settings = get_settings()
+    if not settings.database_url.startswith("sqlite"):
+        log.debug("migrate_db: non-SQLite backend, skipping SQLite migrations")
+        return
+
+    # Columns to add to paper_trades for the Long-Term weekly indicator snapshot
+    new_columns = [
+        ("indicator_snapshot_weekly_sma_200",  "REAL"),
+        ("indicator_snapshot_weekly_rsi",      "REAL"),
+        ("indicator_snapshot_weekly_macd",     "REAL"),
+        ("indicator_snapshot_weekly_bb_lower", "REAL"),
+    ]
+
+    engine = _get_engine()
+    async with engine.begin() as conn:
+        # Read existing columns in paper_trades
+        result = await conn.execute(text("PRAGMA table_info(paper_trades)"))
+        existing_cols = {row[1] for row in result.fetchall()}  # row[1] = column name
+
+        for col_name, col_type in new_columns:
+            if col_name not in existing_cols:
+                await conn.execute(
+                    text(f"ALTER TABLE paper_trades ADD COLUMN {col_name} {col_type}")
+                )
+                log.info(f"Migration: added column paper_trades.{col_name}")
+            else:
+                log.debug(f"Migration: column paper_trades.{col_name} already exists, skipping")

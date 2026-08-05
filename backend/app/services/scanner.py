@@ -200,22 +200,39 @@ async def _check_single_stock(
         # Log to database
         try:
             async with _get_session_maker()() as session:
-                alert = AlertHistory(
-                    user_id=item.user_id,
-                    ticker=item.ticker,
-                    mode=mode,
-                    alert_type=alert_type,
-                    indicator_data={
+                # Build indicator payload — tailored per mode
+                if mode == "long_term":
+                    indicator_payload = {
+                        "price": indicators.price,
+                        "weekly_sma_200": indicators.weekly_sma_200,
+                        "weekly_rsi": indicators.rsi,
+                        "weekly_macd": indicators.macd_line,
+                        "weekly_macd_signal": indicators.macd_signal,
+                        "weekly_macd_histogram": indicators.macd_histogram,
+                        "weekly_bb_lower": indicators.weekly_bb_lower,
+                        "weekly_bb_mid": indicators.weekly_bb_mid,
+                        "weekly_bb_upper": indicators.weekly_bb_upper,
+                        "checks": result.checks,
+                        "aligned_count": sum(result.checks.values()),
+                    }
+                else:
+                    indicator_payload = {
                         "price": indicators.price,
                         "vwap": indicators.vwap,
-                        "ema_200": indicators.ema_200,
                         "supertrend": indicators.supertrend_value,
                         "supertrend_dir": indicators.supertrend_direction,
                         "rsi": indicators.rsi,
                         "macd": indicators.macd_line,
                         "macd_signal": indicators.macd_signal,
                         "checks": result.checks,
-                    },
+                    }
+
+                alert = AlertHistory(
+                    user_id=item.user_id,
+                    ticker=item.ticker,
+                    mode=mode,
+                    alert_type=alert_type,
+                    indicator_data=indicator_payload,
                     price_at_alert=indicators.price,
                     notified_via=notified_via,
                 )
@@ -236,8 +253,8 @@ async def scan_short_selling():
 
 
 async def scan_long_term():
-    """Scan long-term watchlist stocks (daily timeframe)."""
-    await _scan_mode("long_term", interval="1d", period="1y")
+    """Scan long-term watchlist stocks (weekly timeframe — 5 years of data)."""
+    await _scan_mode("long_term", interval="1wk", period="5y")
 
 
 async def scan_exit_alerts():

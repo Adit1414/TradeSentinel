@@ -52,24 +52,52 @@ async def send_telegram_alert(
 
     mode_label = mode_labels.get(mode, mode.upper())
 
-    # Build message
-    lines = [
-        f"🎯 *CONFLUENCE ALERT*",
-        f"",
-        f"*{ticker}* — ₹{price:.2f}",
-        f"Mode: {mode_label}",
-        f"",
-        f"*Indicator Alignment:*",
-    ]
+    # Long-Term mode gets a dedicated "Value Alert" format
+    if mode == "long_term":
+        rsi_val = details.get("weekly_rsi", "")
+        # Extract RSI numeric from detail string if possible
+        import re
+        rsi_match = re.search(r"Weekly RSI ([\d.]+)", rsi_val)
+        rsi_str = rsi_match.group(1) if rsi_match else "—"
 
-    for key, detail in details.items():
-        emoji = "✅" if "✓" in detail or ">" in detail or "Bullish" in detail or "rising" in detail else "🔴"
-        lines.append(f"{emoji} {detail}")
+        sma_ok  = "✓" in details.get("weekly_sma_200", "")
+        rsi_ok  = "✓" in details.get("weekly_rsi", "")
+        macd_ok = "✓" in details.get("weekly_macd", "")
+        bb_ok   = "✓" in details.get("weekly_bb_lower", "")
 
-    lines.extend([
-        f"",
-        f"⚠️ _This is an educational alert, not financial advice._",
-    ])
+        lines = [
+            f"🏦 *[LONG-TERM VALUE ALERT]* {ticker}",
+            f"",
+            f"💰 Price: ₹{price:.2f}",
+            f"Mode: {mode_label}",
+            f"",
+            f"*Weekly Macro Confluence ({sum([sma_ok, rsi_ok, macd_ok, bb_ok])}/4 aligned):*",
+            f"{('✅' if sma_ok else '🔴')} Near 200-W SMA ({details.get('weekly_sma_200', '—')})",
+            f"{('✅' if rsi_ok else '🔴')} Weekly RSI: {rsi_str} ({'Discounted' if rsi_ok else 'Not discounted'})",
+            f"{('✅' if macd_ok else '🔴')} MACD Weekly {'Cross/Recovery' if macd_ok else 'No signal'}",
+            f"{('✅' if bb_ok else '🔴')} Lower Bollinger Band {'Touch' if bb_ok else 'Not touched'}",
+            f"",
+            f"⚠️ _This is an educational alert, not financial advice._",
+        ]
+    else:
+        # Build standard message for intraday / short_selling
+        lines = [
+            f"🎯 *CONFLUENCE ALERT*",
+            f"",
+            f"*{ticker}* — ₹{price:.2f}",
+            f"Mode: {mode_label}",
+            f"",
+            f"*Indicator Alignment:*",
+        ]
+
+        for key, detail in details.items():
+            emoji = "✅" if "✓" in detail or ">" in detail or "Bullish" in detail or "rising" in detail else "🔴"
+            lines.append(f"{emoji} {detail}")
+
+        lines.extend([
+            f"",
+            f"⚠️ _This is an educational alert, not financial advice._",
+        ])
 
     message = "\n".join(lines)
 
@@ -168,23 +196,45 @@ async def send_ntfy_alert(
     }
     mode_label = mode_labels.get(mode, mode.upper())
 
-    # Build message body showing all 4 indicator confluences
-    lines = [
-        f"Stock: {ticker}",
-        f"Price: ₹{price:.2f}",
-        f"Mode: {mode_label}",
-        f"Confluence: ALL 4 INDICATORS ALIGNED",
-        "",
-        "Alignment Breakdown:",
-    ]
-    for key, detail in details.items():
-        lines.append(f"• {detail}")
+    if mode == "long_term":
+        # Long-Term specific compact format
+        import re
+        rsi_val = details.get("weekly_rsi", "")
+        rsi_match = re.search(r"Weekly RSI ([\d.]+)", rsi_val)
+        rsi_str = rsi_match.group(1) if rsi_match else "—"
 
-    lines.append("\n⚠️ Educational alert only. Not financial advice.")
-    message = "\n".join(lines)
+        sma_ok  = "✓" in details.get("weekly_sma_200", "")
+        rsi_ok  = "✓" in details.get("weekly_rsi", "")
+        macd_ok = "✓" in details.get("weekly_macd", "")
+        bb_ok   = "✓" in details.get("weekly_bb_lower", "")
 
-    tags = "chart_with_upwards_trend,bullseye" if mode != "short_selling" else "chart_with_downwards_trend,bullseye"
-    title = f"CONFLUENCE ALERT: {ticker} ({mode_label})"
+        title = f"[LONG-TERM VALUE ALERT] {ticker}"
+        message = (
+            f"Price: ₹{price:.2f}"
+            + (" | Near 200-W SMA" if sma_ok else "")
+            + f" | Weekly RSI: {rsi_str} ({'Discounted' if rsi_ok else 'Not discounted'})"
+            + (" | Lower Bollinger Band Touch" if bb_ok else "")
+            + (" | MACD Weekly Cross" if macd_ok else "")
+            + "\n\n⚠️ Educational alert only. Not financial advice."
+        )
+        tags = "chart_with_upwards_trend,moneybag"
+    else:
+        # Standard intraday / short_selling format
+        title = f"CONFLUENCE ALERT: {ticker} ({mode_label})"
+
+        lines = [
+            f"Stock: {ticker}",
+            f"Price: ₹{price:.2f}",
+            f"Mode: {mode_label}",
+            f"Confluence: ALL 4 INDICATORS ALIGNED",
+            "",
+            "Alignment Breakdown:",
+        ]
+        for key, detail in details.items():
+            lines.append(f"• {detail}")
+        lines.append("\n⚠️ Educational alert only. Not financial advice.")
+        message = "\n".join(lines)
+        tags = "chart_with_upwards_trend,bullseye" if mode != "short_selling" else "chart_with_downwards_trend,bullseye"
 
     try:
         url = f"https://ntfy.sh/{ntfy_topic.strip()}"

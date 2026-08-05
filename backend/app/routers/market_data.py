@@ -49,8 +49,8 @@ async def get_indicators(
     # Determine interval and period based on mode
     if mode in ("intraday", "short_selling"):
         interval, period = "5m", "5d"
-    else:
-        interval, period = "1d", "1y"
+    else:  # long_term — weekly candles, 5 years for 200-W SMA
+        interval, period = "1wk", "5y"
 
     df = fetch_ohlcv(ticker, interval=interval, period=period)
     if df.empty:
@@ -68,11 +68,36 @@ async def get_indicators(
 
     confluence = check_confluence(indicators, mode)
 
-    return {
+    # Base response shared by all modes
+    response = {
         "ticker": ticker.upper().replace(".NS", ""),
         "mode": mode,
         "price": indicators.price,
-        "indicators": {
+        "confluence": {
+            "is_aligned": confluence.is_aligned,
+            "checks": confluence.checks,
+            "details": confluence.details,
+        },
+    }
+
+    if mode == "long_term":
+        # Long-Term: return weekly macro indicators
+        response["indicators"] = {
+            "weekly_sma_200": indicators.weekly_sma_200,
+            "weekly_rsi": indicators.rsi,
+            "weekly_bb_lower": indicators.weekly_bb_lower,
+            "weekly_bb_mid": indicators.weekly_bb_mid,
+            "weekly_bb_upper": indicators.weekly_bb_upper,
+            "macd": {
+                "line": indicators.macd_line,
+                "signal": indicators.macd_signal,
+                "histogram": indicators.macd_histogram,
+                "crossover": indicators.macd_crossover,
+            },
+        }
+    else:
+        # Intraday / Short-Selling: return 5-min indicators
+        response["indicators"] = {
             "vwap": indicators.vwap,
             "ema_200": indicators.ema_200,
             "supertrend": {
@@ -90,13 +115,9 @@ async def get_indicators(
                 "histogram": indicators.macd_histogram,
                 "crossover": indicators.macd_crossover,
             },
-        },
-        "confluence": {
-            "is_aligned": confluence.is_aligned,
-            "checks": confluence.checks,
-            "details": confluence.details,
-        },
-    }
+        }
+
+    return response
 
 
 @router.get("/search")

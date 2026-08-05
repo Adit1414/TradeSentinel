@@ -132,6 +132,13 @@ class PaperTrade(Base):
     indicator_snapshot_vwap: Mapped[float | None] = mapped_column(Float, nullable=True)
     indicator_snapshot_supertrend: Mapped[float] = mapped_column(Float, nullable=False)
 
+    # ── Long-Term (Weekly) indicator snapshot ─────────────────────────────────
+    # Populated only for LONG_TERM trades; NULL for INTRADAY_BUY / SHORT_SELL.
+    indicator_snapshot_weekly_sma_200: Mapped[float | None] = mapped_column(Float, nullable=True)
+    indicator_snapshot_weekly_rsi: Mapped[float | None] = mapped_column(Float, nullable=True)
+    indicator_snapshot_weekly_macd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    indicator_snapshot_weekly_bb_lower: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     # Calculated targets
     calculated_break_even_price: Mapped[float] = mapped_column(Float, nullable=False)
     suggested_stop_loss_price: Mapped[float] = mapped_column(Float, nullable=False)
