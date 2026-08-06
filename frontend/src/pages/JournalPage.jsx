@@ -8,7 +8,7 @@
  * - Summary stats bar (total trades, open, net PnL, win rate)
  */
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   BookOpen,
@@ -243,6 +243,10 @@ function ExpandedRow({ trade, colSpan, onClosed }) {
 export default function JournalPage() {
   const [tab, setTab] = useState('ALL'); // ALL | OPEN | CLOSED
   const [expandedId, setExpandedId] = useState(null);
+  
+  // Date filters
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const { data: trades = [], isLoading } = useQuery({
     queryKey: ['paper-trades', tab],
@@ -253,16 +257,34 @@ export default function JournalPage() {
     refetchInterval: 30000,
   });
 
+  const filteredTrades = useMemo(() => {
+    return trades.filter((t) => {
+      if (!t.entry_time) return true;
+      const entryTime = new Date(t.entry_time);
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        if (entryTime < start) return false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (entryTime > end) return false;
+      }
+      return true;
+    });
+  }, [trades, startDate, endDate]);
+
   // ── Stats ─────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const all = trades;
+    const all = filteredTrades;
     const closed = all.filter((t) => t.status === 'CLOSED');
     const open = all.filter((t) => t.status === 'OPEN');
     const totalNetPnL = closed.reduce((s, t) => s + (t.pnl_net_after_fees ?? 0), 0);
     const winners = closed.filter((t) => (t.pnl_net_after_fees ?? 0) > 0).length;
     const winRate = closed.length > 0 ? ((winners / closed.length) * 100).toFixed(0) : '—';
     return { total: all.length, open: open.length, totalNetPnL, winRate, closedCount: closed.length };
-  }, [trades]);
+  }, [filteredTrades]);
 
   const toggleExpand = (id) => setExpandedId((prev) => (prev === id ? null : id));
 
@@ -271,14 +293,42 @@ export default function JournalPage() {
   return (
     <div style={{ padding: 'var(--space-lg)' }}>
       {/* Header */}
-      <div className="journal-header">
+      <div className="journal-header" style={{ flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
         <h1 className="journal-title">
           <BookOpen size={26} strokeWidth={2} />
           Paper Trading Journal
         </h1>
 
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: 'auto' }}>
+          <label style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>From:</label>
+          <input 
+            type="date" 
+            className="input" 
+            style={{ padding: '6px 10px', width: 'auto', minHeight: 'auto' }} 
+            value={startDate} 
+            onChange={(e) => setStartDate(e.target.value)} 
+          />
+          <label style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginLeft: '4px' }}>To:</label>
+          <input 
+            type="date" 
+            className="input" 
+            style={{ padding: '6px 10px', width: 'auto', minHeight: 'auto' }} 
+            value={endDate} 
+            onChange={(e) => setEndDate(e.target.value)} 
+          />
+          {(startDate || endDate) && (
+            <button 
+              className="btn" 
+              style={{ padding: '6px 12px', minHeight: 'auto', fontSize: '13px' }} 
+              onClick={() => { setStartDate(''); setEndDate(''); }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
         {/* Tabs */}
-        <div className="journal-tabs">
+        <div className="journal-tabs" style={{ marginLeft: '0' }}>
           {['ALL', 'OPEN', 'CLOSED'].map((t) => (
             <button
               key={t}
@@ -333,12 +383,14 @@ export default function JournalPage() {
           <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--blue)', borderRadius: '50%', animation: 'pt-spin 0.7s linear infinite' }} />
           <p>Loading journal…</p>
         </div>
-      ) : trades.length === 0 ? (
+      ) : filteredTrades.length === 0 ? (
         <div className="empty-state glass-card" style={{ padding: 56 }}>
           <BookOpen size={40} strokeWidth={1.2} />
-          <p style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>No trades logged yet</p>
+          <p style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>No trades found</p>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', maxWidth: 340, textAlign: 'center' }}>
-            Click the&nbsp;<strong>📝 Paper Trade</strong>&nbsp;button on any watchlist stock to log your first educational trade.
+            {trades.length === 0 
+              ? "Click the 📝 Paper Trade button on any watchlist stock to log your first educational trade." 
+              : "Try adjusting your date filters."}
           </p>
         </div>
       ) : (
@@ -359,15 +411,14 @@ export default function JournalPage() {
               </tr>
             </thead>
             <tbody>
-              {trades.map((trade) => {
+              {filteredTrades.map((trade) => {
                 const dcfg = directionConfig[trade.trade_direction] ?? {};
                 const isExpanded = expandedId === trade.id;
                 const DirIcon = dcfg.icon ?? Activity;
 
                 return (
-                  <>
+                  <React.Fragment key={trade.id}>
                     <tr
-                      key={trade.id}
                       className={isExpanded ? 'journal-row-expanded' : ''}
                       style={{ cursor: 'pointer' }}
                       onClick={() => toggleExpand(trade.id)}
@@ -417,13 +468,12 @@ export default function JournalPage() {
 
                     {isExpanded && (
                       <ExpandedRow
-                        key={`${trade.id}-expand`}
                         trade={trade}
                         colSpan={COLUMNS}
                         onClosed={() => setExpandedId(null)}
                       />
                     )}
-                  </>
+                  </React.Fragment>
                 );
               })}
             </tbody>
