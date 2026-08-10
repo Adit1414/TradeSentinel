@@ -74,20 +74,16 @@ async def init_db():
 
 
 async def migrate_db():
-    """Apply incremental schema migrations for SQLite.
+    """Apply incremental schema migrations.
 
-    Uses PRAGMA table_info to check for column existence before issuing
-    ALTER TABLE, making each migration fully idempotent and safe to re-run.
-    This function is a no-op for non-SQLite backends (Postgres handles
-    schema via Alembic or manual migrations).
+    Checks for column existence before issuing ALTER TABLE, making each migration
+    fully idempotent and safe to re-run on both SQLite and PostgreSQL.
     """
     import logging
     log = logging.getLogger(__name__)
 
     settings = get_settings()
-    if not settings.database_url.startswith("sqlite"):
-        log.debug("migrate_db: non-SQLite backend, skipping SQLite migrations")
-        return
+    is_sqlite = settings.database_url.startswith("sqlite")
 
     # Columns to add to paper_trades for the Long-Term weekly indicator snapshot
     new_columns = [
@@ -101,9 +97,14 @@ async def migrate_db():
 
     engine = _get_engine()
     async with engine.begin() as conn:
-        # Read existing columns in paper_trades
-        result = await conn.execute(text("PRAGMA table_info(paper_trades)"))
-        existing_cols = {row[1] for row in result.fetchall()}  # row[1] = column name
+        if is_sqlite:
+            result = await conn.execute(text("PRAGMA table_info(paper_trades)"))
+            existing_cols = {row[1] for row in result.fetchall()}
+        else:
+            result = await conn.execute(
+                text("SELECT column_name FROM information_schema.columns WHERE table_name = 'paper_trades'")
+            )
+            existing_cols = {row[0] for row in result.fetchall()}
 
         for col_name, col_type in new_columns:
             if col_name not in existing_cols:
