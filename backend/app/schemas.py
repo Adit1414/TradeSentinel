@@ -229,6 +229,7 @@ class PaperTradeResponse(BaseModel):
     indicator_snapshot_macd_signal: float
     indicator_snapshot_vwap: float | None = None
     indicator_snapshot_supertrend: float
+    indicator_snapshot_ema_200: float | None = None
     # Weekly long-term indicator snapshots (None for intraday / short-sell trades)
     indicator_snapshot_weekly_sma_200: float | None = None
     indicator_snapshot_weekly_rsi: float | None = None

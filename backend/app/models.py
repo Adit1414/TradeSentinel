@@ -131,6 +131,7 @@ class PaperTrade(Base):
     indicator_snapshot_macd_signal: Mapped[float] = mapped_column(Float, nullable=False)
     indicator_snapshot_vwap: Mapped[float | None] = mapped_column(Float, nullable=True)
     indicator_snapshot_supertrend: Mapped[float] = mapped_column(Float, nullable=False)
+    indicator_snapshot_ema_200: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # ── Long-Term (Weekly) indicator snapshot ─────────────────────────────────
     # Populated only for LONG_TERM trades; NULL for INTRADAY_BUY / SHORT_SELL.

@@ -114,6 +114,7 @@ async def open_paper_trade(
         indicator_snapshot_macd_signal=payload.snapshot_macd_signal,
         indicator_snapshot_vwap=payload.snapshot_vwap,
         indicator_snapshot_supertrend=payload.snapshot_supertrend,
+        indicator_snapshot_ema_200=payload.snapshot_ema_200,
         # Weekly long-term indicator snapshot (None for non-LONG_TERM trades)
         indicator_snapshot_weekly_sma_200=payload.snapshot_weekly_sma_200,
         indicator_snapshot_weekly_rsi=payload.snapshot_weekly_rsi,

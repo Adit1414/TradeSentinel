@@ -91,6 +91,8 @@ async def migrate_db():
 
     # Columns to add to paper_trades for the Long-Term weekly indicator snapshot
     new_columns = [
+        ("indicator_snapshot_supertrend",      "REAL"),
+        ("indicator_snapshot_ema_200",         "REAL"),
         ("indicator_snapshot_weekly_sma_200",  "REAL"),
         ("indicator_snapshot_weekly_rsi",      "REAL"),
         ("indicator_snapshot_weekly_macd",     "REAL"),
