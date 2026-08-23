@@ -69,6 +69,7 @@ export default function DashboardPage() {
                 </div>
               <div className="alert-card-time">
                 {new Date(alert.created_at.endsWith('Z') ? alert.created_at : `${alert.created_at}Z`).toLocaleString('en-IN', {
+                  timeZone: 'Asia/Kolkata',
                   day: 'numeric',
                   month: 'short',
                   hour: '2-digit',

@@ -45,7 +45,7 @@ function fmtDate(iso) {
   if (!iso) return '—';
   const utcIso = iso.endsWith('Z') ? iso : `${iso}Z`;
   return new Date(utcIso).toLocaleString('en-IN', {
-    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+    timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   });
 }
 
