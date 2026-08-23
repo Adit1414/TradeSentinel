@@ -360,6 +360,15 @@
   font-size: var(--text-sm);
 }
 
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+  .show-mobile-only[style] {
+    display: flex !important;
+  }
+}
+
 .journal-table th {
   background: var(--bg-tertiary);
   padding: var(--space-sm) var(--space-md);

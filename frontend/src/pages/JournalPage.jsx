@@ -233,6 +233,18 @@ function ExpandedRow({ trade, colSpan, onClosed }) {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
+              <div className="indicator-pill show-mobile-only" style={{ display: 'none' }}>
+                <span className="indicator-pill-label">Direction</span>
+                <span className="indicator-pill-value">{directionConfig[trade.trade_direction]?.label || trade.trade_direction}</span>
+              </div>
+              <div className="indicator-pill show-mobile-only" style={{ display: 'none' }}>
+                <span className="indicator-pill-label">Qty</span>
+                <span className="indicator-pill-value">{trade.quantity}</span>
+              </div>
+              <div className="indicator-pill show-mobile-only" style={{ display: 'none' }}>
+                <span className="indicator-pill-label">Entry Price</span>
+                <span className="indicator-pill-value">₹{fmt(trade.entry_price)}</span>
+              </div>
               <div className="indicator-pill">
                 <span className="indicator-pill-label">Break-Even</span>
                 <span className="indicator-pill-value" style={{ color: 'var(--amber)' }}>
@@ -492,12 +504,12 @@ export default function JournalPage() {
               <tr>
                 <th></th>
                 <th>Ticker</th>
-                <th>Direction</th>
-                <th>Qty</th>
-                <th>Entry ₹</th>
-                <th>Exit ₹</th>
-                <th>Break-Even ₹</th>
-                <th>SL ₹</th>
+                <th className="hide-mobile">Direction</th>
+                <th className="hide-mobile">Qty</th>
+                <th className="hide-mobile">Entry ₹</th>
+                <th className="hide-mobile">Exit ₹</th>
+                <th className="hide-mobile">Break-Even ₹</th>
+                <th className="hide-mobile">SL ₹</th>
                 <th>Net PnL</th>
                 <th>Status</th>
               </tr>
@@ -526,21 +538,21 @@ export default function JournalPage() {
                           {fmtDate(trade.entry_time)}
                         </div>
                       </td>
-                      <td>
+                      <td className="hide-mobile">
                         <span className={`badge ${dcfg.badge ?? ''}`}>
                           <DirIcon size={10} />
                           {dcfg.label ?? trade.trade_direction}
                         </span>
                       </td>
-                      <td className="mono">{trade.quantity}</td>
-                      <td className="mono">₹{fmt(trade.entry_price)}</td>
-                      <td className="mono" style={{ color: trade.exit_price != null ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                      <td className="mono hide-mobile">{trade.quantity}</td>
+                      <td className="mono hide-mobile">₹{fmt(trade.entry_price)}</td>
+                      <td className="mono hide-mobile" style={{ color: trade.exit_price != null ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                         {trade.exit_price != null ? `₹${fmt(trade.exit_price)}` : '—'}
                       </td>
-                      <td className="mono" style={{ color: 'var(--amber)' }}>
+                      <td className="mono hide-mobile" style={{ color: 'var(--amber)' }}>
                         ₹{fmt(trade.calculated_break_even_price)}
                       </td>
-                      <td className="mono" style={{ color: 'var(--red)' }}>
+                      <td className="mono hide-mobile" style={{ color: 'var(--red)' }}>
                         ₹{fmt(trade.suggested_stop_loss_price)}
                       </td>
                       <td>
