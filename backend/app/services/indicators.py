@@ -277,7 +277,9 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
     # Build candle data in TradingView Lightweight Charts format
     candles = []
     for idx, row in df.iterrows():
-        ts = int(idx.timestamp()) if hasattr(idx, "timestamp") else 0
+        # Offset the timestamp by +5:30 (19800 seconds) to force Lightweight Charts 
+        # to render it as IST time on the x-axis.
+        ts = (int(idx.timestamp()) + 19800) if hasattr(idx, "timestamp") else 0
         candles.append({
             "time": ts,
             "open": round(float(row["open"]), 2),
@@ -294,7 +296,7 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
             overlay_series = result.series.get("vwap")
             if overlay_series is not None:
                 indicators["vwap"] = [
-                    {"time": int(idx.timestamp()) if hasattr(idx, "timestamp") else 0, "value": round(float(v), 2)}
+                    {"time": (int(idx.timestamp()) + 19800) if hasattr(idx, "timestamp") else 0, "value": round(float(v), 2)}
                     for idx, v in overlay_series.items()
                 ]
         else:  # long_term — weekly SMA-200 and BB bands as overlays
@@ -302,7 +304,7 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
                 overlay_series = result.series.get(overlay_key)
                 if overlay_series is not None:
                     indicators[overlay_key] = [
-                        {"time": int(idx.timestamp()) if hasattr(idx, "timestamp") else 0, "value": round(float(v), 2)}
+                        {"time": (int(idx.timestamp()) + 19800) if hasattr(idx, "timestamp") else 0, "value": round(float(v), 2)}
                         for idx, v in overlay_series.items()
                     ]
 
@@ -312,7 +314,7 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
         if st_series is not None and st_dir_series is not None:
             indicators["supertrend"] = [
                 {
-                    "time": int(idx.timestamp()) if hasattr(idx, "timestamp") else 0,
+                    "time": (int(idx.timestamp()) + 19800) if hasattr(idx, "timestamp") else 0,
                     "value": round(float(v), 2),
                     "color": "#00e676" if (idx in st_dir_series and st_dir_series[idx] == 1) else "#ff1744",
                 }
@@ -323,7 +325,7 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
         rsi_series = result.series.get("rsi")
         if rsi_series is not None:
             indicators["rsi"] = [
-                {"time": int(idx.timestamp()) if hasattr(idx, "timestamp") else 0, "value": round(float(v), 2)}
+                {"time": (int(idx.timestamp()) + 19800) if hasattr(idx, "timestamp") else 0, "value": round(float(v), 2)}
                 for idx, v in rsi_series.items()
             ]
 
@@ -332,7 +334,7 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
             series = result.series.get(key)
             if series is not None:
                 indicators[key] = [
-                    {"time": int(idx.timestamp()) if hasattr(idx, "timestamp") else 0, "value": round(float(v), 4)}
+                    {"time": (int(idx.timestamp()) + 19800) if hasattr(idx, "timestamp") else 0, "value": round(float(v), 4)}
                     for idx, v in series.items()
                 ]
 
