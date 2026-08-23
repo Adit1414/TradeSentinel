@@ -22,6 +22,8 @@ import {
   Activity,
   Save,
   X,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { paperTradeApi } from '../api/client';
 import '../components/PaperTrade/PaperTrade.css';
@@ -64,6 +66,12 @@ function ExpandedRow({ trade, colSpan, onClosed }) {
   const [notes, setNotes] = useState(trade.reflection_notes ?? '');
   const [notesSaved, setNotesSaved] = useState(false);
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editPrice, setEditPrice] = useState(trade.entry_price);
+  const [editQty, setEditQty] = useState(trade.quantity);
+  const [editDir, setEditDir] = useState(trade.trade_direction);
+  const [editSL, setEditSL] = useState(trade.user_defined_stop_loss || '');
+
   const closeMutation = useMutation({
     mutationFn: ({ id, price }) => paperTradeApi.close(id, price),
     onSuccess: () => {
@@ -78,6 +86,22 @@ function ExpandedRow({ trade, colSpan, onClosed }) {
       queryClient.invalidateQueries({ queryKey: ['paper-trades'] });
       setNotesSaved(true);
       setTimeout(() => setNotesSaved(false), 2000);
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: (data) => paperTradeApi.edit(trade.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['paper-trades'] });
+      setIsEditing(false);
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: () => paperTradeApi.remove(trade.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['paper-trades'] });
+      if (onClosed) onClosed();
     },
   });
 
@@ -108,14 +132,81 @@ function ExpandedRow({ trade, colSpan, onClosed }) {
         <div className="journal-expand-inner">
           {/* Left: Indicator snapshot */}
           <div>
-            <div className="journal-notes-label" style={{ marginBottom: 12 }}>
-              <Activity size={12} /> Indicator Snapshot at Entry
-              {trade.is_manual_override && (
-                <span className="badge badge-amber" style={{ marginLeft: 8 }}>
-                  Manual Override
-                </span>
-              )}
+            <div className="journal-notes-label" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <Activity size={12} /> Indicator Snapshot at Entry
+                {trade.is_manual_override && (
+                  <span className="badge badge-amber" style={{ marginLeft: 8 }}>
+                    Manual Override
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="btn btn-sm btn-icon"
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)' }}
+                  onClick={() => setIsEditing(!isEditing)}
+                  title="Edit Trade"
+                >
+                  <Edit2 size={14} />
+                </button>
+                <button
+                  className="btn btn-sm btn-icon"
+                  style={{ background: 'transparent', border: 'none', color: 'var(--red)' }}
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to permanently delete this paper trade?')) {
+                      removeMutation.mutate();
+                    }
+                  }}
+                  title="Delete Trade"
+                  disabled={removeMutation.isPending}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
+            {isEditing && (
+              <div style={{ marginBottom: 16, padding: 12, background: 'var(--bg-subtle)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 8, color: 'var(--text-bright)' }}>Edit Trade Parameters</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                  <div className="pt-field">
+                    <label className="pt-field-label">Entry Price</label>
+                    <input className="input" type="number" step="any" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
+                  </div>
+                  <div className="pt-field">
+                    <label className="pt-field-label">Quantity</label>
+                    <input className="input" type="number" value={editQty} onChange={(e) => setEditQty(e.target.value)} />
+                  </div>
+                  <div className="pt-field">
+                    <label className="pt-field-label">Direction</label>
+                    <select className="input" value={editDir} onChange={(e) => setEditDir(e.target.value)}>
+                      <option value="INTRADAY_BUY">Intraday Buy</option>
+                      <option value="SHORT_SELL">Short Sell</option>
+                      <option value="LONG_TERM">Long-Term</option>
+                    </select>
+                  </div>
+                  <div className="pt-field">
+                    <label className="pt-field-label">Custom Stop Loss (Optional)</label>
+                    <input className="input" type="number" step="any" value={editSL} onChange={(e) => setEditSL(e.target.value)} placeholder="e.g. 150.5" />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <button className="btn btn-sm" onClick={() => setIsEditing(false)}>Cancel</button>
+                  <button 
+                    className="btn btn-sm btn-primary"
+                    disabled={editMutation.isPending}
+                    onClick={() => editMutation.mutate({
+                      entry_price: parseFloat(editPrice),
+                      quantity: parseInt(editQty, 10),
+                      trade_direction: editDir,
+                      user_defined_stop_loss: editSL ? parseFloat(editSL) : null,
+                    })}
+                  >
+                    {editMutation.isPending ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="indicator-snapshot-grid">
               {/* Section label for Long-Term weekly indicators */}
               {isLongTerm && (

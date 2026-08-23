@@ -212,6 +212,16 @@ class ClosePaperTradeRequest(BaseModel):
     exit_price: float = Field(..., gt=0)
 
 
+class EditPaperTradeRequest(BaseModel):
+    """Request body for PUT /api/paper-trade/{id}."""
+    entry_price: float = Field(..., gt=0)
+    quantity: int = Field(..., gt=0)
+    trade_direction: str = Field(
+        ..., description="INTRADAY_BUY | SHORT_SELL | LONG_TERM"
+    )
+    user_defined_stop_loss: float | None = None
+
+
 class NotesUpdateRequest(BaseModel):
     """Request body for PUT /api/paper-trade/{id}/notes."""
     reflection_notes: str

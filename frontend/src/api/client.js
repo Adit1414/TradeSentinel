@@ -114,6 +114,12 @@ export const paperTradeApi = {
 
   /** List trades, optionally filtered by status ("OPEN" | "CLOSED") or ticker. */
   list: (params = {}) => api.get('/paper-trade/', { params }),
+
+  /** Edit basic parameters of a trade. */
+  edit: (id, data) => api.put(`/paper-trade/${id}`, data),
+
+  /** Permanently delete a trade. */
+  remove: (id) => api.delete(`/paper-trade/${id}`),
 };
 
 export default api;

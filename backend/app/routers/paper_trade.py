@@ -22,6 +22,7 @@ from app.schemas import (
     ClosePaperTradeRequest,
     NotesUpdateRequest,
     OpenPaperTradeRequest,
+    EditPaperTradeRequest,
     PaperTradeResponse,
     SnapshotResponse,
     VALID_DIRECTIONS,
@@ -242,3 +243,85 @@ async def list_paper_trades(
     stmt = stmt.order_by(PaperTrade.entry_time.desc())
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+# ── Edit and Delete Trades ─────────────────────────────────────────────────────
+
+@router.put("/{trade_id}", response_model=PaperTradeResponse)
+async def edit_paper_trade(
+    trade_id: str,
+    payload: EditPaperTradeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update basic entry parameters of an existing paper trade and recalculate targets."""
+    if payload.trade_direction not in VALID_DIRECTIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"trade_direction must be one of: {', '.join(sorted(VALID_DIRECTIONS))}",
+        )
+
+    result = await db.execute(
+        select(PaperTrade).where(
+            PaperTrade.id == trade_id,
+            PaperTrade.user_id == current_user.id,
+        )
+    )
+    trade = result.scalar_one_or_none()
+    if trade is None:
+        raise HTTPException(status_code=404, detail=f"Paper trade '{trade_id}' not found.")
+
+    trade.entry_price = payload.entry_price
+    trade.quantity = payload.quantity
+    trade.trade_direction = payload.trade_direction
+    trade.user_defined_stop_loss = payload.user_defined_stop_loss
+
+    # Recalculate break-even and stop-loss targets
+    be_data = calculate_break_even_and_sl(
+        trade_direction=trade.trade_direction,
+        entry_price=trade.entry_price,
+        quantity=trade.quantity,
+        vwap=trade.indicator_snapshot_vwap,
+        supertrend=trade.indicator_snapshot_supertrend,
+        ema_200=trade.indicator_snapshot_ema_200,
+        weekly_sma_200=trade.indicator_snapshot_weekly_sma_200,
+    )
+    trade.calculated_break_even_price = be_data["break_even_price"]
+    trade.suggested_stop_loss_price = be_data["stop_loss_price"]
+
+    # Recalculate PnL if closed
+    if trade.status == "CLOSED" and trade.exit_price is not None:
+        pnl = compute_close_pnl(
+            trade_direction=trade.trade_direction,
+            entry_price=trade.entry_price,
+            exit_price=trade.exit_price,
+            quantity=trade.quantity,
+        )
+        trade.pnl_gross = pnl["pnl_gross"]
+        trade.pnl_net_after_fees = pnl["pnl_net_after_fees"]
+
+    await db.commit()
+    await db.refresh(trade)
+    return trade
+
+
+@router.delete("/{trade_id}", status_code=204)
+async def delete_paper_trade(
+    trade_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Permanently delete a paper trade entry."""
+    result = await db.execute(
+        select(PaperTrade).where(
+            PaperTrade.id == trade_id,
+            PaperTrade.user_id == current_user.id,
+        )
+    )
+    trade = result.scalar_one_or_none()
+    if trade is None:
+        raise HTTPException(status_code=404, detail=f"Paper trade '{trade_id}' not found.")
+
+    await db.delete(trade)
+    await db.commit()
+    return None
