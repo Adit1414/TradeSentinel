@@ -172,7 +172,7 @@ export default function PositionsPage() {
                     <td className="mono">₹{pos.entry_price.toFixed(2)}</td>
                     <td className="mono">₹{pos.exit_price?.toFixed(2) || '—'}</td>
                     <td style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                      {pos.closed_at ? new Date(pos.closed_at).toLocaleString('en-IN') : '—'}
+                      {pos.closed_at ? new Date(pos.closed_at.endsWith('Z') ? pos.closed_at : `${pos.closed_at}Z`).toLocaleString('en-IN') : '—'}
                     </td>
                   </tr>
                 ))}

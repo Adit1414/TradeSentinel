@@ -43,7 +43,8 @@ function fmt(num, decimals = 2) {
 
 function fmtDate(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('en-IN', {
+  const utcIso = iso.endsWith('Z') ? iso : `${iso}Z`;
+  return new Date(utcIso).toLocaleString('en-IN', {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   });
 }

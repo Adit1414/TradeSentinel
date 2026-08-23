@@ -67,9 +67,8 @@ export default function DashboardPage() {
                     <> · RSI: {alert.indicator_data.rsi.toFixed(1)}</>
                   )}
                 </div>
-              </div>
               <div className="alert-card-time">
-                {new Date(alert.created_at).toLocaleString('en-IN', {
+                {new Date(alert.created_at.endsWith('Z') ? alert.created_at : `${alert.created_at}Z`).toLocaleString('en-IN', {
                   day: 'numeric',
                   month: 'short',
                   hour: '2-digit',
