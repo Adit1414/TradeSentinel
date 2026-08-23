@@ -16,7 +16,7 @@ from app.models import WatchlistItem, AlertHistory, AppSettings
 from app.services.data_fetcher import fetch_ohlcv
 from app.services.indicators import calculate_indicators
 from app.services.confluence import check_confluence
-from app.services.notifier import send_telegram_alert, send_ntfy_alert
+from app.services.notifier import send_telegram_alert, send_ntfy_alert, send_discord_alert
 from app.services.exit_scanner import scan_open_trades_for_exits
 
 logger = logging.getLogger(__name__)
@@ -156,7 +156,9 @@ async def _check_single_stock(
         )
 
         # Fetch settings from DB to get custom bot tokens/topics if updated in UI
+        telegram_chat_id = None
         ntfy_topic = None
+        discord_webhook_url = None
         tg_token = None
         tg_chat = None
 
@@ -165,6 +167,7 @@ async def _check_single_stock(
                 st_res = await session.execute(select(AppSettings))
                 st_map = {r.key: r.value for r in st_res.scalars().all()}
                 ntfy_topic = st_map.get("ntfy_topic")
+                discord_webhook_url = st_map.get("discord_webhook_url")
                 tg_token = st_map.get("telegram_bot_token")
                 tg_chat = st_map.get("telegram_chat_id")
         except Exception:
@@ -194,6 +197,17 @@ async def _check_single_stock(
             notified_methods.append("telegram")
         if ntfy_sent:
             notified_methods.append("ntfy")
+
+        # Send Discord webhook if configured
+        discord_sent = await send_discord_alert(
+            ticker=item.ticker,
+            mode=item.mode,
+            price=price,
+            details=details,
+            webhook_url=discord_webhook_url,
+        )
+        if discord_sent:
+            notified_methods.append("discord")
 
         notified_via = ",".join(notified_methods) if notified_methods else "none"
 

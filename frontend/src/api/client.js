@@ -87,6 +87,7 @@ export const alertsApi = {
   updateSettings: (data) => api.put('/alerts/settings', data),
   testTelegram: (data) => api.post('/alerts/test-telegram', data),
   testNtfy: (topic) => api.post('/alerts/test-ntfy', { topic }),
+  testDiscord: (webhook_url) => api.post('/alerts/test-discord', { webhook_url }),
 };
 
 // ── Health ───────────────────────────────────────────────────────────

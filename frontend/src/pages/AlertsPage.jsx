@@ -152,10 +152,13 @@ function AlertSettingsModal({ onClose }) {
   const [botToken, setBotToken] = useState('');
   const [chatId, setChatId] = useState('');
 
+  const [discordWebhookUrl, setDiscordWebhookUrl] = useState('');
+
   const { data: settings } = useQuery({
     queryKey: ['alert-settings'],
     queryFn: () => alertsApi.getSettings().then((r) => {
       if (r.data.ntfy_topic) setNtfyTopic(r.data.ntfy_topic);
+      if (r.data.discord_webhook_url) setDiscordWebhookUrl(r.data.discord_webhook_url);
       if (r.data.telegram_bot_token) setBotToken(r.data.telegram_bot_token);
       if (r.data.telegram_chat_id) setChatId(r.data.telegram_chat_id);
       return r.data;
@@ -169,6 +172,10 @@ function AlertSettingsModal({ onClose }) {
 
   const testNtfyMutation = useMutation({
     mutationFn: (topic) => alertsApi.testNtfy(topic),
+  });
+
+  const testDiscordMutation = useMutation({
+    mutationFn: (webhook_url) => alertsApi.testDiscord(webhook_url),
   });
 
   const testTelegramMutation = useMutation({
@@ -219,6 +226,44 @@ function AlertSettingsModal({ onClose }) {
           {testNtfyMutation.isError && (
             <div className="form-error" style={{ marginTop: 8 }}>
               ❌ {testNtfyMutation.error?.response?.data?.detail || 'Failed to send test push notification'}
+            </div>
+          )}
+        </div>
+
+        {/* Discord section */}
+        <div style={{ marginBottom: 'var(--space-md)', paddingBottom: 'var(--space-md)', borderBottom: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: '1.1rem' }}>👾</span>
+            <strong style={{ fontSize: 'var(--text-sm)', color: 'var(--text-bright)' }}>Discord Webhook (Highly Recommended)</strong>
+          </div>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 12 }}>
+            Free, anonymous, and no rate limits. Create a webhook in your Discord server settings.
+          </p>
+          <label className="label">Webhook URL</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              className="input"
+              value={discordWebhookUrl}
+              onChange={(e) => setDiscordWebhookUrl(e.target.value)}
+              placeholder="https://discord.com/api/webhooks/..."
+            />
+            <button
+              className="btn"
+              onClick={() => testDiscordMutation.mutate(discordWebhookUrl)}
+              disabled={testDiscordMutation.isPending || !discordWebhookUrl}
+            >
+              <Send size={14} />
+              {testDiscordMutation.isPending ? 'Testing...' : 'Test'}
+            </button>
+          </div>
+          {testDiscordMutation.isSuccess && (
+            <div className="form-success" style={{ marginTop: 8 }}>
+              ✅ Test message sent to Discord!
+            </div>
+          )}
+          {testDiscordMutation.isError && (
+            <div className="form-error" style={{ marginTop: 8 }}>
+              ❌ {testDiscordMutation.error?.response?.data?.detail || 'Failed to send test message'}
             </div>
           )}
         </div>
@@ -279,6 +324,7 @@ function AlertSettingsModal({ onClose }) {
             onClick={() =>
               saveMutation.mutate({
                 ntfy_topic: ntfyTopic,
+                discord_webhook_url: discordWebhookUrl,
                 telegram_bot_token: botToken,
                 telegram_chat_id: chatId,
               })

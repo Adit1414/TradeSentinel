@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
     ntfy_topic: str = ""
+    discord_webhook_url: str = ""
 
     # Scanner intervals (seconds)
     scan_interval_intraday_seconds: int = 120

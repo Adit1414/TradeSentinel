@@ -478,3 +478,166 @@ async def send_exit_ntfy_alert(
         logger.error(f"Failed to send exit ntfy alert: {e}")
         return False
 
+
+# ── Discord Webhook Notifiers ──────────────────────────────────────────────────
+
+async def test_discord_connection(webhook_url: Optional[str] = None) -> dict:
+    """Send a test message to verify Discord Webhook configuration."""
+    settings = get_settings()
+    url = (webhook_url.strip() if webhook_url else None) or settings.discord_webhook_url
+
+    if not url:
+        return {"success": False, "error": "Discord Webhook URL not configured"}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                json={
+                    "username": "Trading Sentinel",
+                    "avatar_url": "https://cdn-icons-png.flaticon.com/512/2933/2933116.png",
+                    "embeds": [{
+                        "title": "✅ Trading Sentinel Connected!",
+                        "description": "You will receive confluence alerts in this channel.",
+                        "color": 3066993,
+                    }]
+                },
+                timeout=10.0,
+            )
+
+        if response.status_code in (200, 204):
+            return {"success": True, "message": "Test notification sent!"}
+        else:
+            return {"success": False, "error": f"Discord error: {response.text}"}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+async def send_discord_alert(
+    ticker: str,
+    mode: str,
+    price: float,
+    details: dict,
+    webhook_url: Optional[str] = None,
+) -> bool:
+    """Send a formatted confluence alert via Discord Webhook."""
+    settings = get_settings()
+    url = (webhook_url.strip() if webhook_url else None) or settings.discord_webhook_url
+
+    if not url:
+        return False
+
+    mode_labels = {
+        "intraday": "Intraday (Buy Side)",
+        "short_selling": "Short Selling (Sell Side)",
+        "long_term": "Long-Term (Delivery)",
+    }
+    mode_label = mode_labels.get(mode, mode.upper())
+
+    if mode == "long_term":
+        title = f"📈 LONG-TERM VALUE ALERT: {ticker}"
+        color = 3447003 # Blue
+        description = f"**Price:** ₹{price:.2f}\n\n**Alignment Breakdown:**\n"
+        for key, detail in details.items():
+            description += f"• {detail}\n"
+    else:
+        title = f"🎯 CONFLUENCE ALERT: {ticker} ({mode_label})"
+        color = 15158332 if mode == "short_selling" else 3066993 # Red or Green
+        description = f"**Stock:** {ticker}\n**Price:** ₹{price:.2f}\n**Mode:** {mode_label}\n**Confluence:** ALL 4 INDICATORS ALIGNED\n\n**Alignment Breakdown:**\n"
+        for key, detail in details.items():
+            description += f"• {detail}\n"
+
+    description += "\n⚠️ *Educational alert only. Not financial advice.*"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                json={
+                    "username": "Trading Sentinel",
+                    "embeds": [{
+                        "title": title,
+                        "description": description,
+                        "color": color,
+                    }]
+                },
+                timeout=10.0,
+            )
+
+        if response.status_code in (200, 204):
+            logger.info(f"Discord alert sent for {ticker} ({mode})")
+            return True
+        else:
+            logger.error(f"Discord API error {response.status_code}: {response.text}")
+            return False
+
+    except Exception as e:
+        logger.error(f"Failed to send Discord alert: {e}")
+        return False
+
+
+async def send_exit_discord_alert(
+    ticker: str,
+    alert_type: str,
+    alert_category: str,
+    reason: str,
+    price: float,
+    net_pnl: float,
+    trade_direction: str,
+    webhook_url: Optional[str] = None,
+) -> bool:
+    """Send a formatted exit alert (Stop-Loss or Take-Profit) via Discord Webhook."""
+    settings = get_settings()
+    url = (webhook_url.strip() if webhook_url else None) or settings.discord_webhook_url
+
+    if not url:
+        return False
+
+    is_stoploss = alert_category == "exit_stoploss"
+    color = 15158332 if is_stoploss else 3066993 # Red if stoploss, Green otherwise
+    pnl_prefix = "+" if net_pnl >= 0 else ""
+
+    direction_labels = {
+        "INTRADAY_BUY": "LONG Intraday",
+        "SHORT_SELL": "SHORT Sell",
+        "LONG_TERM": "LONG CNC",
+    }
+    direction_label = direction_labels.get(trade_direction, trade_direction)
+
+    title = f"{'🚨' if is_stoploss else '💰'} [EXIT ALERT] {ticker} - {alert_type}"
+
+    description = (
+        f"**Direction:** {direction_label}\n"
+        f"**Reason:** {reason}\n"
+        f"**Current Price:** ₹{price:.2f}\n"
+        f"**Unrealised Net PnL:** ₹{pnl_prefix}{net_pnl:.2f}\n\n"
+        "*Educational alert only. Not financial advice.*"
+    )
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                json={
+                    "username": "Trading Sentinel",
+                    "embeds": [{
+                        "title": title,
+                        "description": description,
+                        "color": color,
+                    }]
+                },
+                timeout=10.0,
+            )
+
+        if response.status_code in (200, 204):
+            logger.info(f"Exit Discord alert sent: {ticker} — {alert_type}")
+            return True
+        else:
+            logger.error(f"Discord exit alert error {response.status_code}: {response.text}")
+            return False
+
+    except Exception as e:
+        logger.error(f"Failed to send exit Discord alert: {e}")
+        return False
+

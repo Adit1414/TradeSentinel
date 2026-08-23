@@ -27,7 +27,7 @@ from app.database import _get_session_maker
 from app.models import AlertHistory, AppSettings, PaperTrade
 from app.services.data_fetcher import fetch_ohlcv
 from app.services.indicators import IndicatorResult, calculate_indicators
-from app.services.notifier import send_exit_ntfy_alert, send_exit_telegram_alert
+from app.services.notifier import send_exit_ntfy_alert, send_exit_telegram_alert, send_exit_discord_alert
 from app.utils.charges import calc_charges_delivery, calc_charges_intraday
 
 logger = logging.getLogger(__name__)
@@ -91,6 +91,7 @@ async def _fire_exit_alert(
     )
 
     ntfy_topic = settings_map.get("ntfy_topic")
+    discord_webhook_url = settings_map.get("discord_webhook_url")
     tg_token = settings_map.get("telegram_bot_token")
     tg_chat = settings_map.get("telegram_chat_id")
 
@@ -117,11 +118,24 @@ async def _fire_exit_alert(
         topic=ntfy_topic,
     )
 
+    discord_sent = await send_exit_discord_alert(
+        ticker=trade.ticker,
+        alert_type=alert_type,
+        alert_category=alert_category,
+        reason=reason,
+        price=current_price,
+        net_pnl=net_pnl,
+        trade_direction=trade.trade_direction,
+        webhook_url=discord_webhook_url,
+    )
+
     notified_methods = []
     if tg_sent:
         notified_methods.append("telegram")
     if ntfy_sent:
         notified_methods.append("ntfy")
+    if discord_sent:
+        notified_methods.append("discord")
 
     try:
         alert = AlertHistory(

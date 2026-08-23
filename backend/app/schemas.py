@@ -110,6 +110,7 @@ class AlertSettingsUpdate(BaseModel):
     telegram_bot_token: str | None = None
     telegram_chat_id: str | None = None
     ntfy_topic: str | None = None
+    discord_webhook_url: str | None = None
     scan_interval_intraday_seconds: int | None = Field(None, ge=30)
     scan_interval_longterm_seconds: int | None = Field(None, ge=60)
 
@@ -120,6 +121,10 @@ class NtfyTestRequest(BaseModel):
 
 class TestNtfyRequest(BaseModel):
     topic: str | None = None
+
+
+class TestDiscordRequest(BaseModel):
+    webhook_url: str | None = None
 
 
 class TestTelegramRequest(BaseModel):

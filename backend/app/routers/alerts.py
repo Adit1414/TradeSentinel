@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import AlertHistory, AppSettings, User
-from app.schemas import AlertResponse, AlertSettingsUpdate, TestNtfyRequest, TestTelegramRequest
-from app.services.notifier import test_telegram_connection, test_ntfy_connection
+from app.schemas import AlertResponse, AlertSettingsUpdate, TestNtfyRequest, TestTelegramRequest, TestDiscordRequest
+from app.services.notifier import test_telegram_connection, test_ntfy_connection, test_discord_connection
 from app.utils.auth_utils import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -69,10 +69,12 @@ async def get_alert_settings(db: AsyncSession = Depends(get_db)):
         "telegram_bot_token": settings.get("telegram_bot_token", ""),
         "telegram_chat_id": settings.get("telegram_chat_id", ""),
         "ntfy_topic": settings.get("ntfy_topic", ""),
+        "discord_webhook_url": settings.get("discord_webhook_url", ""),
         "telegram_configured": bool(
             settings.get("telegram_bot_token") and settings.get("telegram_chat_id")
         ),
         "ntfy_configured": bool(settings.get("ntfy_topic")),
+        "discord_configured": bool(settings.get("discord_webhook_url")),
     }
 
 
@@ -144,6 +146,31 @@ async def test_ntfy(
         )
 
     res = await test_ntfy_connection(topic=topic)
+    if not res["success"]:
+        raise HTTPException(status_code=502, detail=res.get("error", "Unknown error"))
+
+    return res
+
+
+@router.post("/test-discord")
+async def test_discord(
+    request: TestDiscordRequest | None = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Send a test push notification via Discord Webhook."""
+    result = await db.execute(select(AppSettings))
+    settings_rows = result.scalars().all()
+    settings = {row.key: row.value for row in settings_rows}
+
+    webhook_url = request.webhook_url if request and request.webhook_url else settings.get("discord_webhook_url")
+
+    if not webhook_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Discord Webhook URL not configured. Enter your webhook URL first.",
+        )
+
+    res = await test_discord_connection(webhook_url=webhook_url)
     if not res["success"]:
         raise HTTPException(status_code=502, detail=res.get("error", "Unknown error"))
 
