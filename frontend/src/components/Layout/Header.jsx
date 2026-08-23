@@ -22,7 +22,7 @@ export default function Header({ toggleSidebar }) {
     pageTitles[location.pathname] ||
     (location.pathname.startsWith('/chart/')
       ? `Chart — ${location.pathname.split('/chart/')[1]?.toUpperCase()}`
-      : 'TradingHelper');
+      : 'TradeSentinel');
 
   // Close menu on outside click
   useEffect(() => {

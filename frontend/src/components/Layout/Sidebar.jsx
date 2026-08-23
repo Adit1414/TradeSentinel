@@ -8,6 +8,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import './Layout.css';
+import logoImg from '../../assets/logo.png';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -24,10 +25,10 @@ export default function Sidebar({ isOpen, closeSidebar }) {
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">
-          <Activity size={22} strokeWidth={2.5} />
+          <img src={logoImg} alt="TradeSentinel Logo" className="sidebar-logo-img" />
         </div>
         <div className="sidebar-logo-text">
-          <span className="sidebar-logo-title">TradingHelper</span>
+          <span className="sidebar-logo-title">TradeSentinel</span>
           <span className="sidebar-logo-sub">NSE Dashboard</span>
         </div>
       </div>

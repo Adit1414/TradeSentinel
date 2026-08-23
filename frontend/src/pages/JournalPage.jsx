@@ -558,7 +558,7 @@ export default function JournalPage() {
                       <td>
                         <PnLDisplay value={trade.pnl_net_after_fees} />
                         {trade.pnl_gross != null && (
-                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                          <div className="hide-mobile" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                             gross ₹{fmt(trade.pnl_gross)}
                           </div>
                         )}

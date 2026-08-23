@@ -132,7 +132,7 @@ export default function LoginPage() {
               </defs>
             </svg>
           </div>
-          <h1 className="login-title">TradingHelper</h1>
+          <h1 className="login-title">TradeSentinel</h1>
           <p className="login-subtitle">NSE Stock Intelligence Dashboard</p>
         </div>
 
