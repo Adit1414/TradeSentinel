@@ -16,11 +16,11 @@ const navItems = [
   { path: '/alerts', label: 'Alerts', icon: Bell },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, closeSidebar }) {
   const location = useLocation();
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">
@@ -38,6 +38,7 @@ export default function Sidebar() {
           <NavLink
             key={path}
             to={path}
+            onClick={closeSidebar}
             className={({ isActive }) =>
               `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`
             }
@@ -47,9 +48,8 @@ export default function Sidebar() {
           </NavLink>
         ))}
 
-        {/* Chart link only shows when on a chart page */}
         {location.pathname.startsWith('/chart') && (
-          <NavLink to={location.pathname} className="sidebar-link sidebar-link-active">
+          <NavLink to={location.pathname} onClick={closeSidebar} className="sidebar-link sidebar-link-active">
             <BarChart3 size={18} />
             <span>Chart</span>
           </NavLink>

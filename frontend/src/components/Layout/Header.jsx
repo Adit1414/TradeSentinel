@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, RefreshCw, ChevronDown } from 'lucide-react';
+import { LogOut, RefreshCw, ChevronDown, Menu } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import './Layout.css';
 
@@ -11,7 +11,7 @@ const pageTitles = {
   '/journal': 'Paper Trade Journal',
 };
 
-export default function Header() {
+export default function Header({ toggleSidebar }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -53,7 +53,12 @@ export default function Header() {
 
   return (
     <header className="header">
-      <h1 className="header-title">{title}</h1>
+      <div className="header-left">
+        <button className="btn btn-ghost btn-icon mobile-menu-btn" onClick={toggleSidebar} title="Open Menu">
+          <Menu size={20} />
+        </button>
+        <h1 className="header-title">{title}</h1>
+      </div>
       <div className="header-actions">
         <button className="btn btn-ghost btn-icon" title="Refresh data">
           <RefreshCw size={16} />

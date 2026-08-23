@@ -133,6 +133,15 @@
   letter-spacing: -0.01em;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.mobile-menu-btn {
+  display: none;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
@@ -159,7 +168,19 @@
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 45; /* Below sidebar (50) but above header (40) */
+  backdrop-filter: blur(2px);
+}
+
 @media (max-width: 768px) {
+  .sidebar-overlay {
+    display: block;
+  }
   .sidebar {
     transform: translateX(-100%);
   }
@@ -168,6 +189,10 @@
   }
   .layout-content {
     margin-left: 0;
+  }
+  .mobile-menu-btn {
+    display: flex;
+    margin-right: var(--space-sm);
   }
 }
 
