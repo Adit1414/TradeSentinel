@@ -9,7 +9,6 @@ export default function BacktestPage() {
   const [period, setPeriod] = useState('10y');
   const [capital, setCapital] = useState(100000);
   const [buyThreshold, setBuyThreshold] = useState(3);
-  const [sellThreshold, setSellThreshold] = useState(3);
 
   const mutation = useMutation({
     mutationFn: (data) => backtestApi.run(data).then((r) => r.data),
@@ -30,7 +29,6 @@ export default function BacktestPage() {
       period,
       initial_capital: parseFloat(capital),
       buy_threshold: parseInt(buyThreshold),
-      sell_threshold: parseInt(sellThreshold),
     });
   };
 
@@ -102,14 +100,11 @@ export default function BacktestPage() {
               </span>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Sell Threshold (1-4)</label>
-              <select className="input" value={sellThreshold} onChange={(e) => setSellThreshold(e.target.value)}>
-                <option value="1">1 Indicator</option>
-                <option value="2">2 Indicators</option>
-                <option value="3">3 Indicators</option>
-                <option value="4">4 Indicators (Strict)</option>
-              </select>
+            <div className="form-group" style={{ padding: 'var(--space-md)', backgroundColor: 'var(--bg-lighter)', borderRadius: 'var(--radius-md)' }}>
+              <label className="form-label" style={{ marginBottom: '8px' }}>Exit Strategy</label>
+              <div style={{ fontSize: '13px', color: 'var(--text-color)', lineHeight: 1.4 }}>
+                <strong>Structural Breakdown</strong> (20% Trailing Stop or Loss of 200-W SMA)
+              </div>
             </div>
 
             <button 

@@ -20,7 +20,6 @@ class TradeSentinelStrategy(Strategy):
         current_close = self.data.Close[-1]
         
         # safely access indicators, defaulting to NaN if not calculated yet
-        weekly_ema_50 = self.data.weekly_ema_50[-1] if 'weekly_ema_50' in self.data.df.columns else np.nan
         weekly_sma_200 = self.data.weekly_sma_200[-1] if 'weekly_sma_200' in self.data.df.columns else np.nan
 
         if not self.position:
@@ -33,14 +32,12 @@ class TradeSentinelStrategy(Strategy):
                 self.peak_price_since_entry = current_close
                 
             # Exit Conditions
-            # Condition A: Price closes below 50-W EMA
-            cond_a = not pd.isna(weekly_ema_50) and current_close < weekly_ema_50
             # Condition B: Price drops 20% from peak since entry
             cond_b = current_close <= self.peak_price_since_entry * 0.80
-            # Condition C: Price closes > 5% below the 200-W SMA
-            cond_c = not pd.isna(weekly_sma_200) and current_close < (weekly_sma_200 * 0.95)
+            # Condition C: Price closes > 10% below the 200-W SMA
+            cond_c = not pd.isna(weekly_sma_200) and current_close < (weekly_sma_200 * 0.90)
             
-            if cond_a or cond_b or cond_c:
+            if cond_b or cond_c:
                 self.position.close()
                 self.peak_price_since_entry = 0.0
 

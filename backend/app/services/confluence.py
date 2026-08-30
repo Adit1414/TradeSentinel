@@ -141,12 +141,6 @@ def check_confluence(indicators: IndicatorResult, mode: str) -> ConfluenceResult
         sell_triggered = False
         sell_reason = ""
         
-        # Condition A: 50-Week EMA Loss
-        if indicators.weekly_ema_50 is not None and indicators.price < indicators.weekly_ema_50:
-            sell_triggered = True
-            sell_reason = f"Price below 50-Week EMA (₹{indicators.weekly_ema_50:.2f})"
-            indicator_signals["exit_ema50"] = "SELL"
-            
         # Condition B: 20% Drawdown from 52-Week High
         if not sell_triggered and indicators.weekly_52w_high is not None:
             trailing_stop = indicators.weekly_52w_high * 0.80
@@ -155,11 +149,11 @@ def check_confluence(indicators: IndicatorResult, mode: str) -> ConfluenceResult
                 sell_reason = f"20% Trailing Stop hit (52W High: ₹{indicators.weekly_52w_high:.2f}, Stop: ₹{trailing_stop:.2f})"
                 indicator_signals["exit_trailing"] = "SELL"
                 
-        # Condition C: Deep 200-W SMA Loss (> 5%)
+        # Condition C: Deep 200-W SMA Loss (> 10%)
         if not sell_triggered and indicators.weekly_sma_200 is not None:
-            if indicators.price < indicators.weekly_sma_200 * 0.95:
+            if indicators.price < indicators.weekly_sma_200 * 0.90:
                 sell_triggered = True
-                sell_reason = f"Price >5% below 200-W SMA (SMA: ₹{indicators.weekly_sma_200:.2f})"
+                sell_reason = f"Price >10% below 200-W SMA (SMA: ₹{indicators.weekly_sma_200:.2f})"
                 indicator_signals["exit_sma200"] = "SELL"
 
         buy_count = sum(1 for v in indicator_signals.values() if v == "BUY")

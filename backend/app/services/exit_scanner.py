@@ -225,16 +225,13 @@ async def _evaluate_long_exit(
     sl_reason = f"Price Rs{price:.2f} dropped below Stop-Loss Rs{sl_level:.2f}"
     
     if is_long_term:
-        if ind.weekly_ema_50 is not None and price < ind.weekly_ema_50:
-            sl_hit = True
-            sl_reason = f"Structural Breakdown: Price Rs{price:.2f} closed below 50-W EMA Rs{ind.weekly_ema_50:.2f}"
-        elif trade.peak_price_since_entry is not None and price <= trade.peak_price_since_entry * 0.80:
+        if trade.peak_price_since_entry is not None and price <= trade.peak_price_since_entry * 0.80:
             sl_hit = True
             trailing_stop = trade.peak_price_since_entry * 0.80
             sl_reason = f"Trailing Stop Hit: Price Rs{price:.2f} dropped 20% from peak Rs{trade.peak_price_since_entry:.2f}"
-        elif ind.weekly_sma_200 is not None and price < ind.weekly_sma_200 * 0.95:
+        elif ind.weekly_sma_200 is not None and price < ind.weekly_sma_200 * 0.90:
             sl_hit = True
-            sl_reason = f"Macro Breakdown: Price Rs{price:.2f} dropped >5% below 200-W SMA Rs{ind.weekly_sma_200:.2f}"
+            sl_reason = f"Macro Breakdown: Price Rs{price:.2f} dropped >10% below 200-W SMA Rs{ind.weekly_sma_200:.2f}"
 
     if sl_hit and not trade.exit_alert_stoploss_sent:
         await _fire_exit_alert(
