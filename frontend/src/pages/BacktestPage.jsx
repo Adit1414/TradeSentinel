@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Play, TrendingUp, AlertCircle, Percent, DollarSign, Activity } from 'lucide-react';
-import { backtestApi } from '../api/client';
+import { backtestApi, watchlistApi } from '../api/client';
 import './Pages.css';
 
 export default function BacktestPage() {
@@ -13,6 +13,15 @@ export default function BacktestPage() {
 
   const mutation = useMutation({
     mutationFn: (data) => backtestApi.run(data).then((r) => r.data),
+  });
+
+  const batchMutation = useMutation({
+    mutationFn: async (data) => {
+      const { data: watchlist } = await watchlistApi.listByMode('long_term');
+      const tickers = watchlist.map((item) => item.ticker);
+      if (tickers.length === 0) throw new Error('No tickers in long-term watchlist');
+      return backtestApi.batchRun({ ...data, tickers }).then((r) => r.data);
+    },
   });
 
   const handleSubmit = (e) => {
@@ -34,8 +43,19 @@ export default function BacktestPage() {
     });
   };
 
+  const handleBatchSubmit = (e) => {
+    e.preventDefault();
+    batchMutation.mutate({
+      period,
+      initial_capital: parseFloat(capital),
+      entry_strategy: parseInt(entryStrategy),
+      exit_strategy: parseInt(exitStrategy),
+    });
+  };
+
   const stats = mutation.data?.stats;
   const trades = mutation.data?.trades;
+  const batchData = batchMutation.data;
 
   return (
     <div className="page-container">
@@ -107,21 +127,41 @@ export default function BacktestPage() {
               </select>
             </div>
 
-            <button 
-              type="submit" 
-              className="btn btn-primary" 
-              style={{ marginTop: 'var(--space-md)', width: '100%' }}
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? (
-                <span className="animate-pulse">Running Backtest...</span>
-              ) : (
-                <>
-                  <Play size={16} />
-                  Run Backtest
-                </>
-              )}
-            </button>
+            <div style={{ display: 'flex', gap: '8px', marginTop: 'var(--space-md)' }}>
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                style={{ flex: 1, padding: '0.5rem' }}
+                disabled={mutation.isPending || batchMutation.isPending}
+              >
+                {mutation.isPending ? (
+                  <span className="animate-pulse">Running...</span>
+                ) : (
+                  <>
+                    <Play size={16} />
+                    Run
+                  </>
+                )}
+              </button>
+              
+              <button 
+                type="button" 
+                onClick={handleBatchSubmit}
+                className="btn" 
+                style={{ flex: 1, backgroundColor: 'var(--bg-lighter)', color: 'var(--text-color)', border: '1px solid var(--border-color)', padding: '0.5rem' }}
+                disabled={mutation.isPending || batchMutation.isPending}
+                title="Run backtest on all tickers in your long_term watchlist"
+              >
+                {batchMutation.isPending ? (
+                  <span className="animate-pulse">Batching...</span>
+                ) : (
+                  <>
+                    <Activity size={16} />
+                    Batch
+                  </>
+                )}
+              </button>
+            </div>
           </form>
 
           {mutation.isError && (
@@ -133,20 +173,82 @@ export default function BacktestPage() {
               </div>
             </div>
           )}
+
+          {batchMutation.isError && (
+            <div className="alert alert-error" style={{ marginTop: 'var(--space-lg)' }}>
+              <AlertCircle size={16} />
+              <div className="alert-content">
+                <span className="alert-title">Batch Backtest Failed</span>
+                <span className="alert-desc">{batchMutation.error.response?.data?.detail || batchMutation.error.message}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Results View */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
           
-          {!stats && !mutation.isPending && (
+          {!stats && !batchData && !mutation.isPending && !batchMutation.isPending && (
             <div className="empty-state glass-card" style={{ padding: '64px 32px' }}>
               <Activity size={48} strokeWidth={1} style={{ marginBottom: 16, opacity: 0.5 }} />
               <h3>Ready to backtest</h3>
               <p>Configure your strategy rules on the left and run the simulation.</p>
-              <p style={{ fontSize: '12px', marginTop: 12 }}>Note: Commission is set to exactly 0.12% per trade to simulate NSE delivery statutory charges (STT, Stamp Duty, Exchange Fees, GST).</p>
+              <p style={{ fontSize: '12px', marginTop: 12 }}>Note: Commission is set to exactly 0.12% per trade to simulate NSE delivery statutory charges.</p>
             </div>
           )}
 
+          {/* Batch Results Table */}
+          {batchData && (
+            <div className="glass-card">
+              <div style={{ padding: 'var(--space-lg)', borderBottom: '1px solid var(--border-color)' }}>
+                <h3 style={{ fontSize: '1rem' }}>Batch Watchlist Results</h3>
+              </div>
+              <div className="table-responsive">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Ticker</th>
+                      <th style={{ textAlign: 'right' }}>Total Return %</th>
+                      <th style={{ textAlign: 'right' }}>B&H Return %</th>
+                      <th style={{ textAlign: 'right' }}>CAGR %</th>
+                      <th style={{ textAlign: 'right' }}>B&H CAGR %</th>
+                      <th style={{ textAlign: 'right' }}>Win Rate</th>
+                      <th style={{ textAlign: 'right' }}>Trades</th>
+                      <th style={{ textAlign: 'right' }}>Cash Drag</th>
+                      <th style={{ textAlign: 'right' }}>Max DD</th>
+                      <th style={{ textAlign: 'right' }}>Total Profit (₹)</th>
+                      <th style={{ textAlign: 'right' }}>Total Loss (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {batchData.map((res, idx) => (
+                      <tr key={idx}>
+                        <td className="mono" style={{ fontWeight: 600 }}>{res.ticker}</td>
+                        {res.error ? (
+                          <td colSpan="10" style={{ color: 'var(--red)', fontSize: '12px' }}>{res.error}</td>
+                        ) : (
+                          <>
+                            <td style={{ textAlign: 'right', color: res.return_pct > 0 ? 'var(--green)' : 'var(--red)' }} className="mono">{res.return_pct > 0 ? '+' : ''}{res.return_pct}%</td>
+                            <td style={{ textAlign: 'right' }} className="mono">{res.buy_hold_return_pct}%</td>
+                            <td style={{ textAlign: 'right', color: res.strategy_cagr_pct > 0 ? 'var(--green)' : 'var(--red)' }} className="mono">{res.strategy_cagr_pct > 0 ? '+' : ''}{res.strategy_cagr_pct}%</td>
+                            <td style={{ textAlign: 'right' }} className="mono">{res.buy_hold_cagr_pct}%</td>
+                            <td style={{ textAlign: 'right' }} className="mono">{res.win_rate_pct}%</td>
+                            <td style={{ textAlign: 'right' }} className="mono">{res.total_trades}</td>
+                            <td style={{ textAlign: 'right' }} className="mono">{res.cash_drag_pct}%</td>
+                            <td style={{ textAlign: 'right', color: 'var(--red)' }} className="mono">{res.max_drawdown_pct}%</td>
+                            <td style={{ textAlign: 'right', color: 'var(--green)' }} className="mono">{res.total_profit_earned > 0 ? '+' : ''}{res.total_profit_earned}</td>
+                            <td style={{ textAlign: 'right', color: 'var(--red)' }} className="mono">{res.total_loss_incurred}</td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Single Ticker Results */}
           {stats && (
             <>
               {/* Summary Stats Grid */}

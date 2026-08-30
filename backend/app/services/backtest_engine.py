@@ -205,6 +205,22 @@ def run_backtest(
     bnh_cagr = ((1 + bnh_return / 100) ** (1 / years) - 1) * 100 if years > 0 else 0
     exposure = stats.get("Exposure Time [%]", 0)
     
+    total_profit_earned = 0.0
+    total_loss_incurred = 0.0
+    
+    if not trades.empty:
+        total_profit_earned = trades[trades['PnL'] > 0]['PnL'].sum()
+        total_loss_incurred = trades[trades['PnL'] < 0]['PnL'].sum()
+
+    # Add open trades PnL
+    strategy_instance = stats.get("_strategy")
+    if strategy_instance and hasattr(strategy_instance, "trades"):
+        for t in strategy_instance.trades:
+            if t.pl > 0:
+                total_profit_earned += t.pl
+            elif t.pl < 0:
+                total_loss_incurred += t.pl
+    
     # 5. Serialize results
     stats_dict = {
         "start": str(stats.get("Start", "")),
@@ -221,7 +237,8 @@ def run_backtest(
         "expectancy_pct": round(stats.get("Expectancy [%]", 0) if not pd.isna(stats.get("Expectancy [%]", 0)) else 0, 2),
         "profit_factor": round(stats.get("Profit Factor", 0) if not pd.isna(stats.get("Profit Factor", 0)) else 0, 2),
         "sharpe_ratio": round(stats.get("Sharpe Ratio", 0) if not pd.isna(stats.get("Sharpe Ratio", 0)) else 0, 2),
-        "sortino_ratio": round(stats.get("Sortino Ratio", 0) if not pd.isna(stats.get("Sortino Ratio", 0)) else 0, 2),
+        "total_profit_earned": round(float(total_profit_earned), 2),
+        "total_loss_incurred": round(float(total_loss_incurred), 2),
     }
 
     trades_list = []
