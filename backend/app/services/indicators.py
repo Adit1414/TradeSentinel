@@ -51,6 +51,8 @@ class IndicatorResult:
     weekly_ema_10: Optional[float] = None
     weekly_ema_40: Optional[float] = None
     weekly_52w_high: Optional[float] = None
+    weekly_20w_low: Optional[float] = None
+    weekly_supertrend_bullish: Optional[bool] = None
 
     # Weekly Bollinger Bands (20, 2)
     weekly_bb_lower: Optional[float] = None
@@ -143,12 +145,30 @@ def calculate_indicators(
                 if include_series:
                     result.series["weekly_ema_40"] = ema40_series.dropna()
 
-            # 52-Week High
+            # 52-Week High & 20-Week Low
             high52_series = df[close_col].rolling(window=52, min_periods=1).max()
             if not high52_series.empty:
                 latest_high52 = high52_series.iloc[-1]
                 result.weekly_52w_high = float(latest_high52) if not pd.isna(latest_high52) else None
                 result.series["weekly_52w_high"] = high52_series
+
+            low20_series = df[close_col].rolling(window=20, min_periods=1).min()
+            if not low20_series.empty:
+                latest_low20 = low20_series.iloc[-1]
+                result.weekly_20w_low = float(latest_low20) if not pd.isna(latest_low20) else None
+                result.series["weekly_20w_low"] = low20_series
+
+            # ── Weekly Supertrend (10, 3) ────────────────────────────
+            st_df = ta.supertrend(
+                high=df["high"], low=df["low"], close=df[close_col],
+                length=10, multiplier=3.0,
+            )
+            if st_df is not None and not st_df.empty:
+                st_cols = st_df.columns.tolist()
+                supertd_col = [c for c in st_cols if c.startswith("SUPERTd_")][0]
+                result.weekly_supertrend_bullish = bool(st_df[supertd_col].iloc[-1] == 1)
+                if include_series:
+                    result.series["weekly_supertrend_bullish"] = (st_df[supertd_col] == 1)
 
             # ── B. Weekly RSI (14) ────────────────────────────────────
             rsi_series = ta.rsi(close=df[close_col], length=14)
@@ -395,5 +415,7 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
             "weekly_bb_lower": result.weekly_bb_lower if result else None,
             "weekly_bb_mid": result.weekly_bb_mid if result else None,
             "weekly_bb_upper": result.weekly_bb_upper if result else None,
+            "weekly_20w_low": result.weekly_20w_low if result else None,
+            "weekly_supertrend_bullish": result.weekly_supertrend_bullish if result else None,
         } if result else {},
     }

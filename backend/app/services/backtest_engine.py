@@ -28,6 +28,10 @@ class TradeSentinelStrategy(Strategy):
         macd_signal = self.data.macd_signal[-1] if 'macd_signal' in self.data.df.columns else np.nan
         weekly_ema_10 = self.data.weekly_ema_10[-1] if 'weekly_ema_10' in self.data.df.columns else np.nan
         weekly_ema_40 = self.data.weekly_ema_40[-1] if 'weekly_ema_40' in self.data.df.columns else np.nan
+        weekly_52w_high_prev = self.data.weekly_52w_high[-2] if 'weekly_52w_high' in self.data.df.columns and len(self.data.weekly_52w_high) > 1 else np.nan
+        weekly_20w_low_prev = self.data.weekly_20w_low[-2] if 'weekly_20w_low' in self.data.df.columns and len(self.data.weekly_20w_low) > 1 else np.nan
+        weekly_supertrend_bullish = self.data.weekly_supertrend_bullish[-1] if 'weekly_supertrend_bullish' in self.data.df.columns else False
+        current_low = self.data.Low[-1]
 
         if not self.position:
             if self.entry_strategy == 1:
@@ -39,6 +43,18 @@ class TradeSentinelStrategy(Strategy):
                 # Option 2: Macro Trend Follower (10W/40W EMA Cross)
                 if not pd.isna(weekly_ema_10) and not pd.isna(weekly_ema_40):
                     if weekly_ema_10 > weekly_ema_40:
+                        self.buy()
+                        self.peak_price_since_entry = current_close
+            elif self.entry_strategy == 3:
+                # Option 3: 52-Week High Breakout (Stage 2)
+                if not pd.isna(weekly_52w_high_prev) and not pd.isna(weekly_ema_40):
+                    if current_close >= weekly_52w_high_prev and current_close > weekly_ema_40:
+                        self.buy()
+                        self.peak_price_since_entry = current_close
+            elif self.entry_strategy == 4:
+                # Option 4: Weekly Trend Pullback (10W EMA Dip)
+                if not pd.isna(weekly_ema_10) and not pd.isna(weekly_ema_40):
+                    if weekly_ema_10 > weekly_ema_40 and current_low <= weekly_ema_10 * 1.01 and current_close > weekly_ema_10:
                         self.buy()
                         self.peak_price_since_entry = current_close
         else:
@@ -72,6 +88,17 @@ class TradeSentinelStrategy(Strategy):
                 # Option 4: Macro Trend Breakdown
                 if not pd.isna(weekly_ema_10) and not pd.isna(weekly_ema_40):
                     if weekly_ema_10 < weekly_ema_40:
+                        exit_triggered = True
+                        
+            elif self.exit_strategy == 5:
+                # Option 5: Weekly Supertrend Flip (10, 3)
+                if not weekly_supertrend_bullish:
+                    exit_triggered = True
+                    
+            elif self.exit_strategy == 6:
+                # Option 6: 20-Week Low Channel Breakdown
+                if not pd.isna(weekly_20w_low_prev):
+                    if current_close < weekly_20w_low_prev:
                         exit_triggered = True
             
             if exit_triggered:
@@ -183,6 +210,24 @@ def run_backtest(
     else:
         df_bt["macd_line"] = np.nan
         df_bt["macd_signal"] = np.nan
+
+    weekly_52w_high = series.get("weekly_52w_high")
+    if weekly_52w_high is not None:
+        df_bt["weekly_52w_high"] = weekly_52w_high.reindex(close.index)
+    else:
+        df_bt["weekly_52w_high"] = np.nan
+
+    weekly_20w_low = series.get("weekly_20w_low")
+    if weekly_20w_low is not None:
+        df_bt["weekly_20w_low"] = weekly_20w_low.reindex(close.index)
+    else:
+        df_bt["weekly_20w_low"] = np.nan
+
+    weekly_supertrend_bullish = series.get("weekly_supertrend_bullish")
+    if weekly_supertrend_bullish is not None:
+        df_bt["weekly_supertrend_bullish"] = weekly_supertrend_bullish.reindex(close.index)
+    else:
+        df_bt["weekly_supertrend_bullish"] = False
 
     # 4. Run Backtest
     bt = Backtest(

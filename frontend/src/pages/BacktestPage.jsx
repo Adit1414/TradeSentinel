@@ -115,6 +115,8 @@ export default function BacktestPage() {
               <select className="input" value={entryStrategy} onChange={(e) => setEntryStrategy(e.target.value)}>
                 <option value="1">1. Deep Value (3-of-4 Indicators)</option>
                 <option value="2">2. Macro Trend Follower (10W/40W EMA Cross)</option>
+                <option value="3">3. 52-Week High Breakout (Stage 2)</option>
+                <option value="4">4. Weekly Trend Pullback (10W EMA Dip)</option>
               </select>
             </div>
 
@@ -125,6 +127,8 @@ export default function BacktestPage() {
                 <option value="2">2. Structural Breakdown (Trailing Stop or 200 SMA Loss)</option>
                 <option value="3">3. Macro Momentum Shift (RSI &gt; 70 + MACD Bearish)</option>
                 <option value="4">4. Macro Trend Breakdown (10W &lt; 40W EMA)</option>
+                <option value="5">5. Weekly Supertrend Flip (10, 3)</option>
+                <option value="6">6. 20-Week Low Channel Breakdown</option>
               </select>
             </div>
 
