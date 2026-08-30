@@ -17,9 +17,10 @@ export default function BacktestPage() {
 
   const batchMutation = useMutation({
     mutationFn: async (data) => {
-      const { data: watchlist } = await watchlistApi.listByMode('long_term');
-      const tickers = watchlist.map((item) => item.ticker);
-      if (tickers.length === 0) throw new Error('No tickers in long-term watchlist');
+      const { data: watchlist } = await watchlistApi.listAll();
+      const allTickers = watchlist.map((item) => item.ticker);
+      const tickers = [...new Set(allTickers)];
+      if (tickers.length === 0) throw new Error('No tickers in watchlist');
       return backtestApi.batchRun({ ...data, tickers }).then((r) => r.data);
     },
   });
@@ -150,7 +151,7 @@ export default function BacktestPage() {
                 className="btn" 
                 style={{ flex: 1, backgroundColor: 'var(--bg-lighter)', color: 'var(--text-color)', border: '1px solid var(--border-color)', padding: '0.5rem' }}
                 disabled={mutation.isPending || batchMutation.isPending}
-                title="Run backtest on all tickers in your long_term watchlist"
+                title="Run backtest on all unique tickers in your watchlists"
               >
                 {batchMutation.isPending ? (
                   <span className="animate-pulse">Batching...</span>
@@ -197,56 +198,92 @@ export default function BacktestPage() {
             </div>
           )}
 
-          {/* Batch Results Table */}
-          {batchData && (
-            <div className="glass-card">
-              <div style={{ padding: 'var(--space-lg)', borderBottom: '1px solid var(--border-color)' }}>
-                <h3 style={{ fontSize: '1rem' }}>Batch Watchlist Results</h3>
-              </div>
-              <div className="table-responsive">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Ticker</th>
-                      <th style={{ textAlign: 'right' }}>Total Return %</th>
-                      <th style={{ textAlign: 'right' }}>B&H Return %</th>
-                      <th style={{ textAlign: 'right' }}>CAGR %</th>
-                      <th style={{ textAlign: 'right' }}>B&H CAGR %</th>
-                      <th style={{ textAlign: 'right' }}>Win Rate</th>
-                      <th style={{ textAlign: 'right' }}>Trades</th>
-                      <th style={{ textAlign: 'right' }}>Cash Drag</th>
-                      <th style={{ textAlign: 'right' }}>Max DD</th>
-                      <th style={{ textAlign: 'right' }}>Total Profit (₹)</th>
-                      <th style={{ textAlign: 'right' }}>Total Loss (₹)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {batchData.map((res, idx) => (
-                      <tr key={idx}>
-                        <td className="mono" style={{ fontWeight: 600 }}>{res.ticker}</td>
-                        {res.error ? (
-                          <td colSpan="10" style={{ color: 'var(--red)', fontSize: '12px' }}>{res.error}</td>
-                        ) : (
-                          <>
-                            <td style={{ textAlign: 'right', color: res.return_pct > 0 ? 'var(--green)' : 'var(--red)' }} className="mono">{res.return_pct > 0 ? '+' : ''}{res.return_pct}%</td>
-                            <td style={{ textAlign: 'right' }} className="mono">{res.buy_hold_return_pct}%</td>
-                            <td style={{ textAlign: 'right', color: res.strategy_cagr_pct > 0 ? 'var(--green)' : 'var(--red)' }} className="mono">{res.strategy_cagr_pct > 0 ? '+' : ''}{res.strategy_cagr_pct}%</td>
-                            <td style={{ textAlign: 'right' }} className="mono">{res.buy_hold_cagr_pct}%</td>
-                            <td style={{ textAlign: 'right' }} className="mono">{res.win_rate_pct}%</td>
-                            <td style={{ textAlign: 'right' }} className="mono">{res.total_trades}</td>
-                            <td style={{ textAlign: 'right' }} className="mono">{res.cash_drag_pct}%</td>
-                            <td style={{ textAlign: 'right', color: 'var(--red)' }} className="mono">{res.max_drawdown_pct}%</td>
-                            <td style={{ textAlign: 'right', color: 'var(--green)' }} className="mono">{res.total_profit_earned > 0 ? '+' : ''}{res.total_profit_earned}</td>
-                            <td style={{ textAlign: 'right', color: 'var(--red)' }} className="mono">{res.total_loss_incurred}</td>
-                          </>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           )}
+
+          {/* Aggregate Calculation */}
+          {(() => {
+            if (!batchData || batchData.length === 0) return null;
+            const validData = batchData.filter(d => !d.error);
+            const n = validData.length;
+            if (n === 0) return null;
+            
+            const agg = {
+              return_pct: (validData.reduce((acc, curr) => acc + curr.return_pct, 0) / n).toFixed(2),
+              buy_hold_return_pct: (validData.reduce((acc, curr) => acc + curr.buy_hold_return_pct, 0) / n).toFixed(2),
+              strategy_cagr_pct: (validData.reduce((acc, curr) => acc + curr.strategy_cagr_pct, 0) / n).toFixed(2),
+              buy_hold_cagr_pct: (validData.reduce((acc, curr) => acc + curr.buy_hold_cagr_pct, 0) / n).toFixed(2),
+              win_rate_pct: (validData.reduce((acc, curr) => acc + curr.win_rate_pct, 0) / n).toFixed(2),
+              total_trades: validData.reduce((acc, curr) => acc + curr.total_trades, 0),
+              cash_drag_pct: (validData.reduce((acc, curr) => acc + curr.cash_drag_pct, 0) / n).toFixed(2),
+              max_drawdown_pct: (validData.reduce((acc, curr) => acc + curr.max_drawdown_pct, 0) / n).toFixed(2),
+              total_profit_earned: validData.reduce((acc, curr) => acc + curr.total_profit_earned, 0).toFixed(2),
+              total_loss_incurred: validData.reduce((acc, curr) => acc + curr.total_loss_incurred, 0).toFixed(2)
+            };
+
+            return (
+              <div className="glass-card">
+                <div style={{ padding: 'var(--space-lg)', borderBottom: '1px solid var(--border-color)' }}>
+                  <h3 style={{ fontSize: '1rem' }}>Batch Watchlist Results</h3>
+                </div>
+                <div className="table-responsive">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Ticker</th>
+                        <th style={{ textAlign: 'right' }}>Total Return %</th>
+                        <th style={{ textAlign: 'right' }}>B&H Return %</th>
+                        <th style={{ textAlign: 'right' }}>CAGR %</th>
+                        <th style={{ textAlign: 'right' }}>B&H CAGR %</th>
+                        <th style={{ textAlign: 'right' }}>Win Rate</th>
+                        <th style={{ textAlign: 'right' }}>Trades</th>
+                        <th style={{ textAlign: 'right' }}>Cash Drag</th>
+                        <th style={{ textAlign: 'right' }}>Max DD</th>
+                        <th style={{ textAlign: 'right' }}>Total Profit (₹)</th>
+                        <th style={{ textAlign: 'right' }}>Total Loss (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {batchData.map((res, idx) => (
+                        <tr key={idx}>
+                          <td className="mono" style={{ fontWeight: 600 }}>{res.ticker}</td>
+                          {res.error ? (
+                            <td colSpan="10" style={{ color: 'var(--red)', fontSize: '12px' }}>{res.error}</td>
+                          ) : (
+                            <>
+                              <td style={{ textAlign: 'right', color: res.return_pct > 0 ? 'var(--green)' : 'var(--red)' }} className="mono">{res.return_pct > 0 ? '+' : ''}{res.return_pct}%</td>
+                              <td style={{ textAlign: 'right' }} className="mono">{res.buy_hold_return_pct}%</td>
+                              <td style={{ textAlign: 'right', color: res.strategy_cagr_pct > 0 ? 'var(--green)' : 'var(--red)' }} className="mono">{res.strategy_cagr_pct > 0 ? '+' : ''}{res.strategy_cagr_pct}%</td>
+                              <td style={{ textAlign: 'right' }} className="mono">{res.buy_hold_cagr_pct}%</td>
+                              <td style={{ textAlign: 'right' }} className="mono">{res.win_rate_pct}%</td>
+                              <td style={{ textAlign: 'right' }} className="mono">{res.total_trades}</td>
+                              <td style={{ textAlign: 'right' }} className="mono">{res.cash_drag_pct}%</td>
+                              <td style={{ textAlign: 'right', color: 'var(--red)' }} className="mono">{res.max_drawdown_pct}%</td>
+                              <td style={{ textAlign: 'right', color: 'var(--green)' }} className="mono">{res.total_profit_earned > 0 ? '+' : ''}{res.total_profit_earned}</td>
+                              <td style={{ textAlign: 'right', color: 'var(--red)' }} className="mono">{res.total_loss_incurred}</td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                      {/* Aggregate Row */}
+                      <tr style={{ backgroundColor: 'var(--bg-lighter)' }}>
+                        <td className="mono" style={{ fontWeight: 700 }}>AGGREGATE ({n} valid)</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: agg.return_pct > 0 ? 'var(--green)' : 'var(--red)' }} className="mono">{agg.return_pct > 0 ? '+' : ''}{agg.return_pct}%</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }} className="mono">{agg.buy_hold_return_pct}%</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: agg.strategy_cagr_pct > 0 ? 'var(--green)' : 'var(--red)' }} className="mono">{agg.strategy_cagr_pct > 0 ? '+' : ''}{agg.strategy_cagr_pct}%</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }} className="mono">{agg.buy_hold_cagr_pct}%</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }} className="mono">{agg.win_rate_pct}%</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }} className="mono">{agg.total_trades}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }} className="mono">{agg.cash_drag_pct}%</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--red)' }} className="mono">{agg.max_drawdown_pct}%</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--green)' }} className="mono">{agg.total_profit_earned > 0 ? '+' : ''}{agg.total_profit_earned}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--red)' }} className="mono">{agg.total_loss_incurred}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Single Ticker Results */}
           {stats && (
