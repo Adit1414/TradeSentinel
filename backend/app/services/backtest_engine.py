@@ -69,33 +69,33 @@ def run_backtest(
     df_bt["BUY_SCORE"] = 0
     df_bt["SELL_SCORE"] = 0
     
-    # Ensure series are aligned with df_bt index
-    ema_200 = series.get("ema_200")
+    # Ensure series are aligned with df_bt index via pandas automatic index alignment
+    ema_200 = series.get("weekly_sma_200") # wait, for long_term we used weekly_sma_200, not ema_200!
     if ema_200 is not None:
-        df_bt["BUY_SCORE"] += np.where(close > ema_200, 1, 0)
-        df_bt["SELL_SCORE"] += np.where(close < ema_200, 1, 0)
+        df_bt["BUY_SCORE"] += (close > ema_200).fillna(False).astype(int)
+        df_bt["SELL_SCORE"] += (close < ema_200).fillna(False).astype(int)
         
-    st_dir = series.get("supertrend_dir")
+    st_dir = series.get("supertrend_direction")
     if st_dir is not None:
-        df_bt["BUY_SCORE"] += np.where(st_dir == 1, 1, 0)
-        df_bt["SELL_SCORE"] += np.where(st_dir == -1, 1, 0)
+        df_bt["BUY_SCORE"] += (st_dir == 1).fillna(False).astype(int)
+        df_bt["SELL_SCORE"] += (st_dir == -1).fillna(False).astype(int)
         
     rsi = series.get("rsi")
     if rsi is not None:
         rsi_rising = rsi > rsi.shift(1)
         rsi_falling = rsi < rsi.shift(1)
         # Buy: 50 < RSI < 70, rising
-        df_bt["BUY_SCORE"] += np.where((rsi > 50) & (rsi < 70) & rsi_rising, 1, 0)
+        df_bt["BUY_SCORE"] += ((rsi > 50) & (rsi < 70) & rsi_rising).fillna(False).astype(int)
         # Sell: RSI < 50, falling
-        df_bt["SELL_SCORE"] += np.where((rsi < 50) & rsi_falling, 1, 0)
+        df_bt["SELL_SCORE"] += ((rsi < 50) & rsi_falling).fillna(False).astype(int)
         
     macd_line = series.get("macd_line")
     macd_signal = series.get("macd_signal")
-    macd_hist = series.get("macd_hist")
+    macd_hist = series.get("macd_histogram") # wait, in indicators.py it is called macd_histogram
     
     if macd_line is not None and macd_signal is not None and macd_hist is not None:
-        df_bt["BUY_SCORE"] += np.where((macd_line > macd_signal) & (macd_hist > 0), 1, 0)
-        df_bt["SELL_SCORE"] += np.where((macd_line < macd_signal) & (macd_hist < 0), 1, 0)
+        df_bt["BUY_SCORE"] += ((macd_line > macd_signal) & (macd_hist > 0)).fillna(False).astype(int)
+        df_bt["SELL_SCORE"] += ((macd_line < macd_signal) & (macd_hist < 0)).fillna(False).astype(int)
 
     # 4. Run Backtest
     # Delivery commission estimation: STT(0.1%) + Exchange(0.003%) + Stamp(0.015%) = ~0.12%
