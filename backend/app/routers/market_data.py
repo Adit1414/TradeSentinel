@@ -3,6 +3,9 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
+from typing import List
+import concurrent.futures
 
 from app.services.data_fetcher import fetch_ohlcv, search_tickers, get_current_price
 from app.services.indicators import get_chart_data, calculate_indicators
@@ -11,9 +14,12 @@ from app.services.confluence import check_confluence
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/market", tags=["Market Data"])
 
+class BatchIndicatorRequest(BaseModel):
+    tickers: List[str]
+    mode: str = "intraday"
 
 @router.get("/chart/{ticker}")
-async def get_chart(
+def get_chart(
     ticker: str,
     interval: str = Query("5m", pattern=r"^(1m|5m|15m|1h|1d|1wk)$"),
     period: str = Query("5d"),
@@ -41,11 +47,37 @@ async def get_chart(
 
 
 @router.get("/indicators/{ticker}")
-async def get_indicators(
+def get_indicators(
     ticker: str,
     mode: str = Query("intraday", pattern=r"^(intraday|short_selling|long_term)$"),
 ):
     """Get current indicator values and confluence status for a ticker."""
+    res = _get_single_indicator(ticker, mode)
+    if res is None:
+        raise HTTPException(status_code=404, detail=f"No market data or insufficient data for {ticker}")
+    return res
+
+@router.post("/indicators/batch")
+def get_indicators_batch(request: BatchIndicatorRequest):
+    """Get indicators for multiple tickers concurrently."""
+    results = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_ticker = {
+            executor.submit(_get_single_indicator, t, request.mode): t 
+            for t in request.tickers
+        }
+        for future in concurrent.futures.as_completed(future_to_ticker):
+            t = future_to_ticker[future]
+            try:
+                res = future.result()
+                if res:
+                    results[t] = res
+            except Exception as e:
+                logger.error(f"Batch indicator error for {t}: {e}")
+    return results
+
+def _get_single_indicator(ticker: str, mode: str) -> dict:
+    """Helper to fetch and calculate indicators for a single ticker."""
     # Determine interval and period based on mode
     if mode in ("intraday", "short_selling"):
         interval, period = "5m", "5d"
@@ -54,17 +86,11 @@ async def get_indicators(
 
     df = fetch_ohlcv(ticker, interval=interval, period=period)
     if df.empty:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No market data available for {ticker}",
-        )
+        return None
 
     indicators = calculate_indicators(df, mode=mode)
     if indicators is None:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Insufficient data to calculate indicators for {ticker}",
-        )
+        return None
 
     confluence = check_confluence(indicators, mode)
 
@@ -122,7 +148,7 @@ async def get_indicators(
 
 
 @router.get("/search")
-async def search_stocks(
+def search_stocks(
     q: str = Query(..., min_length=1, description="Search query"),
 ):
     """Search for NSE tickers by name or symbol."""
@@ -133,7 +159,7 @@ async def search_stocks(
 
 
 @router.get("/price/{ticker}")
-async def get_price(ticker: str):
+def get_price(ticker: str):
     """Get the latest price for a ticker."""
     price = get_current_price(ticker)
     if price is None:

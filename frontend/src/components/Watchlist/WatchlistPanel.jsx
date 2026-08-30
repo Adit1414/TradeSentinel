@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, BarChart3, TrendingUp, TrendingDown, Clock, Eye, EyeOff, BookOpen } from 'lucide-react';
-import { watchlistApi } from '../../api/client';
+import { watchlistApi, marketApi } from '../../api/client';
 import AddTickerModal from './AddTickerModal';
 import PaperTradeModal from '../PaperTrade/PaperTradeModal';
 import './Watchlist.css';
@@ -35,6 +35,15 @@ export default function WatchlistPanel({ mode }) {
     queryKey: ['watchlist', mode],
     queryFn: () => watchlistApi.listByMode(mode).then((r) => r.data),
     refetchInterval: 60000,
+  });
+
+  const activeTickers = items.filter((i) => i.is_active).map((i) => i.ticker);
+
+  const { data: batchIndicators = {}, isLoading: isBatchLoading } = useQuery({
+    queryKey: ['indicators-batch', mode, activeTickers],
+    queryFn: () => marketApi.getIndicatorsBatch(activeTickers, mode).then((r) => r.data),
+    refetchInterval: 60000,
+    enabled: activeTickers.length > 0,
   });
 
   const removeMutation = useMutation({
@@ -83,55 +92,18 @@ export default function WatchlistPanel({ mode }) {
           </div>
         ) : (
           items.map((item, index) => (
-            <div
+            <WatchlistItemRow
               key={item.id}
-              className={`watchlist-item ${!item.is_active ? 'watchlist-item-inactive' : ''}`}
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <div
-                className="watchlist-item-info"
-                onClick={() => navigate(`/chart/${item.ticker}?mode=${mode}`)}
-                role="button"
-                tabIndex={0}
-              >
-                <span className="watchlist-item-ticker mono">{item.ticker}</span>
-                <span className="watchlist-item-name truncate">
-                  {item.display_name || item.ticker}
-                </span>
-              </div>
-
-              <div className="watchlist-item-actions">
-                <button
-                  className="btn btn-ghost btn-sm btn-icon"
-                  title="Log Paper Trade"
-                  onClick={(e) => { e.stopPropagation(); setPaperTradeTicker(item.ticker); }}
-                >
-                  <BookOpen size={14} />
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm btn-icon"
-                  onClick={() => navigate(`/chart/${item.ticker}?mode=${mode}`)}
-                >
-                  <BarChart3 size={14} />
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm btn-icon"
-                  title={item.is_active ? 'Pause tracking' : 'Resume tracking'}
-                  onClick={() =>
-                    toggleMutation.mutate({ id: item.id, is_active: !item.is_active })
-                  }
-                >
-                  {item.is_active ? <Eye size={14} /> : <EyeOff size={14} />}
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm btn-icon"
-                  title="Remove"
-                  onClick={() => removeMutation.mutate(item.id)}
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
+              item={item}
+              index={index}
+              mode={mode}
+              navigate={navigate}
+              setPaperTradeTicker={setPaperTradeTicker}
+              toggleMutation={toggleMutation}
+              removeMutation={removeMutation}
+              indicatorData={batchIndicators[item.ticker]}
+              isIndicatorsLoading={isBatchLoading && item.is_active}
+            />
           ))
         )}
       </div>
@@ -156,6 +128,81 @@ export default function WatchlistPanel({ mode }) {
           onClose={() => setPaperTradeTicker(null)}
         />
       )}
+    </div>
+  );
+}
+
+function WatchlistItemRow({ item, index, mode, navigate, setPaperTradeTicker, toggleMutation, removeMutation, indicatorData, isIndicatorsLoading }) {
+  const confluence = indicatorData?.confluence;
+  let signalsUI = null;
+
+  if (isIndicatorsLoading && item.is_active) {
+    signalsUI = (
+      <div style={{ display: 'flex', gap: 6, fontSize: 11, marginRight: 8, color: 'var(--text-muted)' }}>
+        <span className="animate-pulse">···</span>
+      </div>
+    );
+  } else if (confluence?.indicator_signals) {
+    const buys = Object.values(confluence.indicator_signals).filter((s) => s === 'BUY').length;
+    const sells = Object.values(confluence.indicator_signals).filter((s) => s === 'SELL').length;
+    signalsUI = (
+      <div style={{ display: 'flex', gap: 6, fontSize: 11, fontWeight: 600, marginRight: 8, padding: '2px 6px', background: 'var(--surface-hover)', borderRadius: 4 }}>
+        {buys > 0 && <span style={{ color: 'var(--green)' }}>{buys}↑</span>}
+        {sells > 0 && <span style={{ color: 'var(--red)' }}>{sells}↓</span>}
+        {buys === 0 && sells === 0 && <span style={{ color: 'var(--text-muted)' }}>—</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`watchlist-item ${!item.is_active ? 'watchlist-item-inactive' : ''}`}
+      style={{ animationDelay: `${index * 50}ms` }}
+    >
+      <div
+        className="watchlist-item-info"
+        onClick={() => navigate(`/chart/${item.ticker}?mode=${mode}`)}
+        role="button"
+        tabIndex={0}
+      >
+        <span className="watchlist-item-ticker mono">{item.ticker}</span>
+        <span className="watchlist-item-name truncate">
+          {item.display_name || item.ticker}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {signalsUI}
+        <div className="watchlist-item-actions">
+          <button
+            className="btn btn-ghost btn-sm btn-icon"
+            title="Log Paper Trade"
+            onClick={(e) => { e.stopPropagation(); setPaperTradeTicker(item.ticker); }}
+          >
+            <BookOpen size={14} />
+          </button>
+          <button
+            className="btn btn-ghost btn-sm btn-icon"
+            onClick={() => navigate(`/chart/${item.ticker}?mode=${mode}`)}
+          >
+            <BarChart3 size={14} />
+          </button>
+          <button
+            className="btn btn-ghost btn-sm btn-icon"
+            title={item.is_active ? 'Pause tracking' : 'Resume tracking'}
+            onClick={() => toggleMutation.mutate({ id: item.id, is_active: !item.is_active })}
+          >
+            {item.is_active ? <Eye size={14} /> : <EyeOff size={14} />}
+          </button>
+          <button
+            className="btn btn-ghost btn-sm btn-icon"
+            title="Remove"
+            onClick={() => removeMutation.mutate(item.id)}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

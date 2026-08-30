@@ -66,6 +66,8 @@ export const marketApi = {
     api.get(`/market/chart/${ticker}`, { params: { interval, period, mode } }),
   getIndicators: (ticker, mode = 'intraday') =>
     api.get(`/market/indicators/${ticker}`, { params: { mode } }),
+  getIndicatorsBatch: (tickers, mode = 'intraday') =>
+    api.post(`/market/indicators/batch`, { tickers, mode }),
   search: (query) => api.get('/market/search', { params: { q: query } }),
   getPrice: (ticker) => api.get(`/market/price/${ticker}`),
 };
