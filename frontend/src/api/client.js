@@ -123,5 +123,9 @@ export const paperTradeApi = {
   /** Permanently delete a trade. */
   remove: (id) => api.delete(`/paper-trade/${id}`),
 };
+// ── Backtest ─────────────────────────────────────────────────────────
+export const backtestApi = {
+  run: (data) => api.post('/backtest/run', data),
+};
 
 export default api;

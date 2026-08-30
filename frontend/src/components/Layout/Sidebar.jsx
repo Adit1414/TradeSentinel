@@ -1,20 +1,14 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  BarChart3,
-  Wallet,
-  Bell,
-  Activity,
-  BookOpen,
-} from 'lucide-react';
+import { LayoutDashboard, Target, Bell, BookOpen, Activity, BarChart3 } from 'lucide-react';
 import './Layout.css';
 import logoImg from '../../assets/logo.png';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/positions', label: 'Positions', icon: Wallet },
+  { path: '/positions', label: 'Positions', icon: Target },
   { path: '/journal', label: 'Journal', icon: BookOpen },
   { path: '/alerts', label: 'Alerts', icon: Bell },
+  { path: '/backtest', label: 'Backtester', icon: Activity },
 ];
 
 export default function Sidebar({ isOpen, closeSidebar }) {

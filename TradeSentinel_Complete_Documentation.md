@@ -47,9 +47,9 @@
 
 **TradeSentinel** (internally also called "TradingHelper") is a full-stack educational trading platform built for the **Indian National Stock Exchange (NSE)**. It allows users to:
 
-- **Track stocks** across three distinct trading modes: Intraday, Short Selling, and Long-Term (Delivery).
+- **Track stocks** across two distinct trading modes: Intraday and Long-Term (Delivery).
 - **View interactive charts** with candlestick data, VWAP/EMA overlays, Supertrend, RSI, and MACD — all powered by real NSE market data via yfinance.
-- **Receive confluence alerts** when all 4 technical indicators align simultaneously — pushed via Telegram and/or ntfy.sh.
+- **Receive confluence alerts** when all 4 technical indicators align simultaneously — pushed via Telegram and/or ntfy.sh. (Indicators are explicitly graded as BUY, SELL, or NEUTRAL).
 - **Practice paper trading** with virtual capital, capturing exact indicator snapshots at entry, auto-calculating NSE-fee-adjusted break-even prices and stop-loss levels, tracking P&L on close.
 - **Maintain a trading journal** with reflection notes on each trade.
 - **Monitor positions** with a break-even calculator that factors in all Indian statutory charges (brokerage, STT, exchange fees, stamp duty, GST, SEBI fee).
@@ -118,7 +118,7 @@ TradeSentinel/
 │   │   ├── routers/
 │   │   │   ├── __init__.py
 │   │   │   ├── auth.py               # Google OAuth login, JWT, /me
-│   │   │   ├── watchlist.py          # CRUD for 3-mode watchlist
+│   │   │   ├── watchlist.py          # CRUD for 2-mode watchlist
 │   │   │   ├── market_data.py        # Chart data, indicators, search, price
 │   │   │   ├── positions.py          # Position tracker + break-even calculator
 │   │   │   ├── alerts.py             # Alert history + notification settings
@@ -174,7 +174,7 @@ TradeSentinel/
 │   │   │       ├── AddTickerModal.jsx  # Search + add ticker dialog
 │   │   │       └── Watchlist.css
 │   │   └── pages/
-│   │       ├── DashboardPage.jsx      # 3-column watchlist + recent alerts
+│   │       ├── DashboardPage.jsx      # 2-column watchlist + recent alerts
 │   │       ├── ChartPage.jsx          # Full chart view with indicators
 │   │       ├── PositionsPage.jsx      # Position tracker + calculator
 │   │       ├── AlertsPage.jsx         # Alert history + settings
@@ -285,7 +285,7 @@ Uses `pydantic-settings` to load all config from environment variables (with `.e
 | `telegram_bot_token` | `""` | Telegram Bot API token |
 | `telegram_chat_id` | `""` | Telegram chat/group ID |
 | `ntfy_topic` | `""` | ntfy.sh topic for push notifications |
-| `scan_interval_intraday_seconds` | `120` | How often to scan intraday/short-selling watchlists |
+| `scan_interval_intraday_seconds` | `120` | How often to scan intraday watchlist |
 | `scan_interval_longterm_seconds` | `900` | How often to scan long-term watchlist |
 | `alert_cooldown_intraday_minutes` | `30` | Min time between repeat alerts for same ticker (intraday) |
 | `alert_cooldown_longterm_hours` | `24` | Min time between repeat alerts for same ticker (long-term) |
@@ -339,7 +339,7 @@ Six SQLAlchemy models define the database schema:
 | `user_id` | Integer (FK → users.id), indexed | Owner |
 | `ticker` | String(20) | NSE symbol (e.g., "RELIANCE") |
 | `display_name` | String(100), nullable | Human-readable name |
-| `mode` | String(20) | `"intraday"` \| `"short_selling"` \| `"long_term"` |
+| `mode` | String(20) | `"intraday"` \| `"long_term"` |
 | `is_active` | Boolean | Whether the scanner should scan this |
 | `created_at` | DateTime | |
 | `updated_at` | DateTime | Auto-updated |
@@ -350,7 +350,7 @@ Six SQLAlchemy models define the database schema:
 | `id` | Integer (PK) | |
 | `user_id` | Integer (FK → users.id), indexed | |
 | `ticker` | String(20) | |
-| `trade_type` | String(20) | `"intraday"` \| `"short_selling"` \| `"long_term"` |
+| `trade_type` | String(20) | `"intraday"` \| `"long_term"` |
 | `direction` | String(4) | `"BUY"` \| `"SELL"` |
 | `quantity` | Integer | |
 | `entry_price` | Float | |
@@ -388,7 +388,7 @@ A key-value store for runtime-configurable settings (notification credentials, s
 | `id` | String(36) (PK) | UUID |
 | `user_id` | Integer (FK → users.id), indexed | |
 | `ticker` | String(20), indexed | |
-| `trade_direction` | String(20) | `"INTRADAY_BUY"` \| `"SHORT_SELL"` \| `"LONG_TERM"` |
+| `trade_direction` | String(20) | `"INTRADAY_BUY"` \| `"INTRADAY_SHORT"` \| `"LONG_TERM_BUY"` \| `"LONG_TERM_SELL"` |
 | `quantity` | Integer | |
 | `status` | String(10) | `"OPEN"` \| `"CLOSED"` |
 | `entry_time` | DateTime | |
@@ -431,7 +431,7 @@ Defines all request/response models with validation:
 All response models use `model_config = {"from_attributes": True}` for direct ORM-to-schema serialization.
 
 Key validations:
-- `mode` must match pattern `^(intraday|short_selling|long_term)$`
+- `mode` must match pattern `^(intraday|long_term)$`
 - `direction` must match `^(BUY|SELL)$`
 - `interval` must match `^(1m|5m|15m|1h|1d|1wk)$`
 - `quantity` must be `> 0`, `entry_price` must be `> 0`
@@ -453,7 +453,7 @@ Key validations:
 **File:** `backend/app/routers/watchlist.py`
 
 - **`GET /`**: List all watchlist items across all modes (scoped to current user), ordered by mode then creation date.
-- **`GET /{mode}`**: List items for a specific mode (`intraday`, `short_selling`, `long_term`).
+- **`GET /{mode}`**: List items for a specific mode (`intraday`, `long_term`).
 - **`POST /`**: Add a ticker. Auto-normalizes to uppercase. Checks for duplicates within the same user+mode. Auto-fetches `display_name` from yfinance if not provided.
 - **`PUT /{item_id}`**: Update ticker, display name, mode, or active status.
 - **`DELETE /{item_id}`**: Remove a ticker from a watchlist.
@@ -463,7 +463,7 @@ Key validations:
 **File:** `backend/app/routers/market_data.py`
 
 - **`GET /chart/{ticker}`**: Returns full OHLCV candle data + all indicator time-series (VWAP/EMA, Supertrend, RSI, MACD) in TradingView Lightweight Charts format. Accepts `interval`, `period`, and `mode` as query params.
-- **`GET /indicators/{ticker}`**: Returns current (latest) indicator values + confluence check result. Mode determines interval/period: intraday/short → 5m/5d, long_term → 1d/1y.
+- **`GET /indicators/{ticker}`**: Returns current (latest) indicator values + confluence check result. Mode determines interval/period: intraday → 5m/5d, long_term → 1wk/5y. Uses `ThreadPoolExecutor` for concurrent fetching in batches.
 - **`GET /search?q=...`**: Search for NSE tickers by symbol (uses yfinance Ticker info lookup).
 - **`GET /price/{ticker}`**: Get the latest price for a ticker (1-minute interval, latest close).
 
@@ -533,7 +533,7 @@ Key validations:
 
 **`calculate_indicators(df, mode, include_series)`:**
 1. Validates minimum 30 rows of data
-2. Calculates **VWAP** (intraday/short_selling only) via `ta.vwap()`
+2. Calculates **VWAP** (intraday only) via `ta.vwap()`
 3. Calculates **200 EMA** (long_term only) via `ta.ema(length=200)`
 4. Calculates **Supertrend**(7, 3.0) via `ta.supertrend()` — extracts the `SUPERT_` and `SUPERTd_` columns
 5. Calculates **RSI**(14) via `ta.rsi()` — determines if rising by comparing last two values
@@ -554,7 +554,7 @@ Key validations:
 
 **Three mode-specific checkers:**
 
-| Check | Intraday (Buy) | Short Selling (Sell) | Long-Term (Delivery) |
+| Check | Intraday (Buy) | Intraday (Short Sell) | Long-Term (Buy) |
 |---|---|---|---|
 | **Overlay** | Price > VWAP | Price < VWAP | Price > 200 EMA |
 | **Supertrend** | Direction == 1 (Bullish) | Direction == -1 (Bearish) | Direction == 1 (Bullish) |
@@ -595,7 +595,6 @@ Returns: entry_price, quantity, buy_value, breakeven_price, target_price, charge
 | Job | Schedule | Function |
 |---|---|---|
 | Intraday Scanner | Every `scan_interval_intraday_seconds` | `scan_intraday()` |
-| Short Selling Scanner | Every `scan_interval_intraday_seconds` | `scan_short_selling()` |
 | Long-Term Scanner | Every `scan_interval_longterm_seconds` | `scan_long_term()` |
 | Exit Alert Scanner | Every `scan_interval_intraday_seconds` | `scan_exit_alerts()` |
 | Alert Purge | Cron 15:35 IST daily | `purge_old_alerts()` |
@@ -657,8 +656,9 @@ Three key functions:
 
 2. **`calculate_break_even_and_sl(trade_direction, entry_price, quantity, vwap, supertrend, ema_200)`**: Calculates fee-adjusted break-even and suggested stop-loss:
    - **INTRADAY_BUY**: BE = entry + (total_fees / qty), SL = VWAP (or entry × 0.995)
-   - **SHORT_SELL**: BE = entry - (total_fees / qty), SL = VWAP if above entry, else supertrend (or entry × 1.005)
-   - **LONG_TERM**: BE = entry + (total_fees / qty), SL = EMA 200 (or entry × 0.98)
+   - **INTRADAY_SHORT**: BE = entry - (total_fees / qty), SL = VWAP if above entry, else supertrend (or entry × 1.005)
+   - **LONG_TERM_BUY**: BE = entry + (total_fees / qty), SL = EMA 200 (or entry × 0.98)
+   - **LONG_TERM_SELL**: Tracking existing holdings (exiting positions)
 
 3. **`compute_close_pnl(trade_direction, entry_price, exit_price, quantity)`**: Calculates gross and net PnL:
    - Long: `(exit - entry) × qty - fees`
@@ -803,7 +803,7 @@ Creates an Axios instance pointed at `VITE_API_BASE_URL` (defaults to `http://lo
 - On successful Google callback → calls `login()` → navigates to `/`
 
 #### `DashboardPage`
-- Three-column grid of `WatchlistPanel` components (one per mode)
+- Two-column grid of `WatchlistPanel` components (Intraday and Long-Term)
 - Recent alerts feed at the bottom (auto-refreshes every 30s)
 - Each alert shows ticker, mode badge, price, RSI, and timestamp
 
@@ -846,7 +846,7 @@ Creates an Axios instance pointed at `VITE_API_BASE_URL` (defaults to `http://lo
 - **`Header`**: Top bar with stock search, user avatar, logout button
 
 #### Watchlist Components
-- **`WatchlistPanel`**: Displays a single-mode watchlist (intraday/short/long-term). Shows ticker cards with last price (auto-refreshes). Click to navigate to chart. Add/remove buttons.
+- **`WatchlistPanel`**: Displays a single-mode watchlist (intraday/long-term). Shows ticker cards with last price (auto-refreshes). Now fetches live batch indicator summaries (e.g. 2↑, 1↓). Click to navigate to chart. Add/remove buttons.
 - **`AddTickerModal`**: Search dialog — user types a symbol, backend searches yfinance, results shown, user selects to add to watchlist.
 
 #### PaperTrade Components

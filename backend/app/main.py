@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import init_db, migrate_db
-from app.routers import watchlist, market_data, positions, alerts, paper_trade, auth
+from app.routers import watchlist, market_data, positions, alerts, paper_trade, auth, backtest
 from app.services.scanner import create_scheduler
 
 # ── Logging ────────────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ app.include_router(market_data.router)
 app.include_router(positions.router)
 app.include_router(alerts.router)
 app.include_router(paper_trade.router)
-
+app.include_router(backtest.router)
 
 # ── Health check ───────────────────────────────────────────────────────────────
 @app.get("/api/health", tags=["System"])
