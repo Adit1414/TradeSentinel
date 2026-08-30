@@ -150,6 +150,25 @@ def run_backtest(
                 "duration": str(row.get("Duration", ""))
             })
 
+    # Also append currently open trades (which are not in stats["_trades"])
+    strategy = stats.get("_strategy")
+    if strategy and hasattr(strategy, "trades"):
+        for t in strategy.trades:
+            # t is a Trade object
+            trades_list.append({
+                "size": int(t.size),
+                "entry_price": float(t.entry_price),
+                "exit_price": float(close.iloc[-1]), # Mark to market using last close
+                "entry_time": str(df_bt.index[t.entry_bar]),
+                "exit_time": "Open",
+                "pnl": float(t.pl),
+                "return_pct": float(t.pl_pct * 100),
+                "duration": "Ongoing"
+            })
+            
+    # Reverse the list so newest trades are at the top (optional, but good UX)
+    trades_list.reverse()
+
     return {
         "stats": stats_dict,
         "trades": trades_list
