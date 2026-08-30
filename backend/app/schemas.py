@@ -252,6 +252,7 @@ class PaperTradeResponse(BaseModel):
     indicator_snapshot_weekly_bb_lower: float | None = None
     calculated_break_even_price: float
     suggested_stop_loss_price: float
+    peak_price_since_entry: float | None = None
     pnl_gross: float | None = None
     pnl_net_after_fees: float | None = None
     reflection_notes: str | None = None

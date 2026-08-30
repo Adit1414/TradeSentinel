@@ -182,6 +182,13 @@ async def _evaluate_long_exit(
     net_pnl = _calc_net_pnl(trade, price)
     changed = False
 
+    is_long_term = trade.trade_direction in ("LONG_TERM_BUY", "LONG_TERM_SELL")
+    
+    if is_long_term:
+        if trade.peak_price_since_entry is None or price > trade.peak_price_since_entry:
+            trade.peak_price_since_entry = price
+            changed = True
+
     # 1. VWAP Breakdown (intraday / short_selling modes only)
     if ind.vwap is not None:
         vwap_breakdown = price < ind.vwap
@@ -197,27 +204,42 @@ async def _evaluate_long_exit(
             trade.exit_alert_vwap_sent = False
             changed = True
 
-    # 2. Supertrend Flip to Bearish
-    supertrend_bearish = ind.supertrend_direction == -1
-    if supertrend_bearish and not trade.exit_alert_supertrend_sent:
-        await _fire_exit_alert(
-            trade, "Supertrend Reversal", "exit_stoploss",
-            f"Supertrend flipped to Bearish (Red) at Rs{ind.supertrend_value:.2f}",
-            price, net_pnl, settings_map, session,
-        )
-        trade.exit_alert_supertrend_sent = True
-        changed = True
-    elif not supertrend_bearish and trade.exit_alert_supertrend_sent:
-        trade.exit_alert_supertrend_sent = False
-        changed = True
+    # 2. Supertrend Flip to Bearish (Intraday only)
+    if not is_long_term:
+        supertrend_bearish = ind.supertrend_direction == -1
+        if supertrend_bearish and not trade.exit_alert_supertrend_sent:
+            await _fire_exit_alert(
+                trade, "Supertrend Reversal", "exit_stoploss",
+                f"Supertrend flipped to Bearish (Red) at Rs{ind.supertrend_value:.2f}",
+                price, net_pnl, settings_map, session,
+            )
+            trade.exit_alert_supertrend_sent = True
+            changed = True
+        elif not supertrend_bearish and trade.exit_alert_supertrend_sent:
+            trade.exit_alert_supertrend_sent = False
+            changed = True
 
-    # 3. Hard Stop-Loss Hit
+    # 3. Hard Stop-Loss Hit or Long-Term Structural Breakdown
     sl_level = _effective_sl(trade)
     sl_hit = price < sl_level
+    sl_reason = f"Price Rs{price:.2f} dropped below Stop-Loss Rs{sl_level:.2f}"
+    
+    if is_long_term:
+        if ind.weekly_ema_50 is not None and price < ind.weekly_ema_50:
+            sl_hit = True
+            sl_reason = f"Structural Breakdown: Price Rs{price:.2f} closed below 50-W EMA Rs{ind.weekly_ema_50:.2f}"
+        elif trade.peak_price_since_entry is not None and price <= trade.peak_price_since_entry * 0.80:
+            sl_hit = True
+            trailing_stop = trade.peak_price_since_entry * 0.80
+            sl_reason = f"Trailing Stop Hit: Price Rs{price:.2f} dropped 20% from peak Rs{trade.peak_price_since_entry:.2f}"
+        elif ind.weekly_sma_200 is not None and price < ind.weekly_sma_200 * 0.95:
+            sl_hit = True
+            sl_reason = f"Macro Breakdown: Price Rs{price:.2f} dropped >5% below 200-W SMA Rs{ind.weekly_sma_200:.2f}"
+
     if sl_hit and not trade.exit_alert_stoploss_sent:
         await _fire_exit_alert(
             trade, "Stop-Loss Hit", "exit_stoploss",
-            f"Price Rs{price:.2f} dropped below Stop-Loss Rs{sl_level:.2f}",
+            sl_reason,
             price, net_pnl, settings_map, session,
         )
         trade.exit_alert_stoploss_sent = True
@@ -226,33 +248,34 @@ async def _evaluate_long_exit(
         trade.exit_alert_stoploss_sent = False
         changed = True
 
-    # 4. RSI Overbought (> 70)
-    rsi_overbought = ind.rsi > 70
-    if rsi_overbought and not trade.exit_alert_rsi_sent:
-        await _fire_exit_alert(
-            trade, "RSI Overbought Peak", "exit_takeprofit",
-            f"RSI {ind.rsi:.1f} crossed above 70 -- momentum overextended, pullback likely",
-            price, net_pnl, settings_map, session,
-        )
-        trade.exit_alert_rsi_sent = True
-        changed = True
-    elif not rsi_overbought and trade.exit_alert_rsi_sent:
-        trade.exit_alert_rsi_sent = False
-        changed = True
-
-    # 5. MACD Bearish Crossover
-    macd_bearish_cross = ind.macd_crossover == "bearish"
-    if macd_bearish_cross and not trade.exit_alert_macd_sent:
-        await _fire_exit_alert(
-            trade, "MACD Bearish Crossover", "exit_takeprofit",
-            f"MACD ({ind.macd_line:.4f}) crossed below Signal ({ind.macd_signal:.4f}) -- upward momentum fading",
-            price, net_pnl, settings_map, session,
-        )
-        trade.exit_alert_macd_sent = True
-        changed = True
-    elif not macd_bearish_cross and trade.exit_alert_macd_sent:
-        trade.exit_alert_macd_sent = False
-        changed = True
+    if not is_long_term:
+        # 4. RSI Overbought (> 70)
+        rsi_overbought = ind.rsi > 70
+        if rsi_overbought and not trade.exit_alert_rsi_sent:
+            await _fire_exit_alert(
+                trade, "RSI Overbought Peak", "exit_takeprofit",
+                f"RSI {ind.rsi:.1f} crossed above 70 -- momentum overextended, pullback likely",
+                price, net_pnl, settings_map, session,
+            )
+            trade.exit_alert_rsi_sent = True
+            changed = True
+        elif not rsi_overbought and trade.exit_alert_rsi_sent:
+            trade.exit_alert_rsi_sent = False
+            changed = True
+    
+        # 5. MACD Bearish Crossover
+        macd_bearish_cross = ind.macd_crossover == "bearish"
+        if macd_bearish_cross and not trade.exit_alert_macd_sent:
+            await _fire_exit_alert(
+                trade, "MACD Bearish Crossover", "exit_takeprofit",
+                f"MACD ({ind.macd_line:.4f}) crossed below Signal ({ind.macd_signal:.4f}) -- upward momentum fading",
+                price, net_pnl, settings_map, session,
+            )
+            trade.exit_alert_macd_sent = True
+            changed = True
+        elif not macd_bearish_cross and trade.exit_alert_macd_sent:
+            trade.exit_alert_macd_sent = False
+            changed = True
 
     # 6. Break-Even Reached (one-shot, flag never resets)
     be_reached = price >= trade.calculated_break_even_price
@@ -423,7 +446,7 @@ async def _scan_single_trade(trade: PaperTrade, settings_map: dict) -> None:
     if mode in ("intraday", "short_selling"):
         interval, period = "5m", "5d"
     else:
-        interval, period = "1d", "1y"
+        interval, period = "1wk", "10y"
 
     df = fetch_ohlcv(trade.ticker, interval=interval, period=period)
     if df.empty:

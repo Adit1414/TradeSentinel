@@ -47,6 +47,8 @@ class IndicatorResult:
     # ── Weekly indicators (long_term mode only) ────────────────────────────────
     # 200-Week Simple Moving Average
     weekly_sma_200: Optional[float] = None
+    weekly_ema_50: Optional[float] = None
+    weekly_52w_high: Optional[float] = None
 
     # Weekly Bollinger Bands (20, 2)
     weekly_bb_lower: Optional[float] = None
@@ -105,8 +107,10 @@ def calculate_indicators(
         #             Bollinger Bands 20/2 (weekly)
         # ══════════════════════════════════════════════════════════════
         if mode == "long_term":
-            # ── A. 200-Week Simple Moving Average ─────────────────────
+            # ── A. 200-Week Simple Moving Average & 50-Week EMA ────────
             sma200_series = ta.sma(close=df["close"], length=200)
+            ema50_series = ta.ema(close=df["close"], length=50)
+            
             if sma200_series is not None and not sma200_series.empty:
                 latest_sma200 = sma200_series.iloc[-1]
                 result.weekly_sma_200 = (
@@ -114,6 +118,18 @@ def calculate_indicators(
                 )
                 if include_series:
                     result.series["weekly_sma_200"] = sma200_series.dropna()
+                    
+            if ema50_series is not None and not ema50_series.empty:
+                latest_ema50 = ema50_series.iloc[-1]
+                result.weekly_ema_50 = float(latest_ema50) if not pd.isna(latest_ema50) else None
+                result.series["weekly_ema_50"] = ema50_series.dropna()
+
+            # 52-Week High
+            high52_series = df["close"].rolling(window=52, min_periods=1).max()
+            if not high52_series.empty:
+                latest_high52 = high52_series.iloc[-1]
+                result.weekly_52w_high = float(latest_high52) if not pd.isna(latest_high52) else None
+                result.series["weekly_52w_high"] = high52_series
 
             # ── B. Weekly RSI (14) ────────────────────────────────────
             rsi_series = ta.rsi(close=df["close"], length=14)

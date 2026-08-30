@@ -107,51 +107,70 @@ def check_confluence(indicators: IndicatorResult, mode: str) -> ConfluenceResult
             indicator_signals["weekly_sma_200"] = "NEUTRAL"
             details["weekly_sma_200"] = "200-W SMA not available"
 
-        # 2. RSI
+        # 2. RSI (Buy only)
         if indicators.rsi <= 42:
             indicator_signals["weekly_rsi"] = "BUY"
-        elif indicators.rsi >= 70:
-            indicator_signals["weekly_rsi"] = "SELL"
+            details["weekly_rsi"] = f"Weekly RSI {indicators.rsi:.1f} (Oversold)"
         else:
             indicator_signals["weekly_rsi"] = "NEUTRAL"
-        details["weekly_rsi"] = f"Weekly RSI {indicators.rsi:.1f}"
+            details["weekly_rsi"] = f"Weekly RSI {indicators.rsi:.1f}"
 
-        # 3. MACD
+        # 3. MACD (Buy only)
         macd_bullish_cross = indicators.macd_line > indicators.macd_signal
         hist_rising_from_negative = (indicators.macd_histogram > indicators.macd_histogram_prev and indicators.macd_histogram_prev < 0)
-        macd_exhausted = indicators.macd_line < indicators.macd_signal
         
         if macd_bullish_cross or hist_rising_from_negative:
             indicator_signals["weekly_macd"] = "BUY"
-        elif macd_exhausted:
-            indicator_signals["weekly_macd"] = "SELL"
         else:
             indicator_signals["weekly_macd"] = "NEUTRAL"
         details["weekly_macd"] = f"Weekly MACD {indicators.macd_line:.4f} / Signal {indicators.macd_signal:.4f}"
 
-        # 4. Bollinger Bands (combining upper and lower into one signal)
-        if indicators.weekly_bb_lower is not None and indicators.weekly_bb_upper is not None:
+        # 4. Bollinger Bands (Buy only)
+        if indicators.weekly_bb_lower is not None:
             if indicators.price <= indicators.weekly_bb_lower * 1.02:
                 indicator_signals["weekly_bb"] = "BUY"
                 details["weekly_bb"] = f"Price ₹{indicators.price:.2f} at/near Lower BB ₹{indicators.weekly_bb_lower:.2f}"
-            elif indicators.price >= indicators.weekly_bb_upper * 0.98:
-                indicator_signals["weekly_bb"] = "SELL"
-                details["weekly_bb"] = f"Price ₹{indicators.price:.2f} at/near Upper BB ₹{indicators.weekly_bb_upper:.2f}"
             else:
                 indicator_signals["weekly_bb"] = "NEUTRAL"
-                details["weekly_bb"] = f"Price ₹{indicators.price:.2f} between bands"
+                details["weekly_bb"] = f"Price ₹{indicators.price:.2f} above Lower BB"
         else:
             indicator_signals["weekly_bb"] = "NEUTRAL"
             details["weekly_bb"] = "Bollinger Bands not available"
+            
+        # ── EXIT CONDITIONS (SELL) ──
+        sell_triggered = False
+        sell_reason = ""
+        
+        # Condition A: 50-Week EMA Loss
+        if indicators.weekly_ema_50 is not None and indicators.price < indicators.weekly_ema_50:
+            sell_triggered = True
+            sell_reason = f"Price below 50-Week EMA (₹{indicators.weekly_ema_50:.2f})"
+            indicator_signals["exit_ema50"] = "SELL"
+            
+        # Condition B: 20% Drawdown from 52-Week High
+        if not sell_triggered and indicators.weekly_52w_high is not None:
+            trailing_stop = indicators.weekly_52w_high * 0.80
+            if indicators.price <= trailing_stop:
+                sell_triggered = True
+                sell_reason = f"20% Trailing Stop hit (52W High: ₹{indicators.weekly_52w_high:.2f}, Stop: ₹{trailing_stop:.2f})"
+                indicator_signals["exit_trailing"] = "SELL"
+                
+        # Condition C: Deep 200-W SMA Loss (> 5%)
+        if not sell_triggered and indicators.weekly_sma_200 is not None:
+            if indicators.price < indicators.weekly_sma_200 * 0.95:
+                sell_triggered = True
+                sell_reason = f"Price >5% below 200-W SMA (SMA: ₹{indicators.weekly_sma_200:.2f})"
+                indicator_signals["exit_sma200"] = "SELL"
 
         buy_count = sum(1 for v in indicator_signals.values() if v == "BUY")
-        sell_count = sum(1 for v in indicator_signals.values() if v == "SELL")
 
         if buy_count >= 3:
             logger.info(f"🎯 LONG-TERM VALUE ALERT! Price: ₹{indicators.price:.2f} | {buy_count}/4 conditions met")
             return ConfluenceResult(is_aligned=True, mode=mode, signal="BUY", indicator_signals=indicator_signals, details=details)
-        elif sell_count >= 3:
-            logger.info(f"🏦 LONG-TERM PROFIT-TAKING ALERT! Price: ₹{indicators.price:.2f} | {sell_count}/4 sell conditions met")
+        elif sell_triggered:
+            logger.info(f"🏦 LONG-TERM EXIT ALERT! {sell_reason}")
+            # Add sell_reason to details so frontend can show it
+            details["exit_reason"] = sell_reason
             return ConfluenceResult(is_aligned=True, mode=mode, signal="SELL", indicator_signals=indicator_signals, details=details)
         else:
             return ConfluenceResult(is_aligned=False, mode=mode, signal="NONE", indicator_signals=indicator_signals, details=details)

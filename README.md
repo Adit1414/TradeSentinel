@@ -13,8 +13,9 @@ TradeSentinel is a comprehensive trading platform featuring interactive charting
     *   MACD (Moving Average Convergence Divergence) Panel
     *   RSI (Relative Strength Index) Panel
 *   **💸 Paper Trading Simulator**: Practice trading with virtual capital across 4 distinct tracking goals (`INTRADAY_BUY`, `INTRADAY_SHORT`, `LONG_TERM_BUY`, `LONG_TERM_SELL`).
+*   **🕰️ Historical Backtester**: Test long-term strategies over historical data with detailed reports including Strategy CAGR, Buy & Hold CAGR, Cash Drag, and Max Drawdown metrics.
 *   **📈 Watchlist Management**: Add, remove, and monitor favorite stock tickers across Intraday and Long-Term modes, featuring **live indicator summaries** directly on the dashboard.
-*   **💼 Position Tracking**: Monitor your active and closed positions, track P&L (Profit & Loss), and manage risk.
+*   **💼 Position Tracking**: Monitor your active and closed positions, track P&L (Profit & Loss), and manage risk with dynamic **trailing stops**.
 *   **📓 Trading Journal**: Document your thoughts, strategies, and lessons learned for every trade to improve your edge.
 *   **🔔 Alerts System**: Set custom price and indicator alerts so you never miss a trading opportunity.
 *   **🔍 Technical Analysis & Scanning**: Built-in 4-indicator confluence engine powered by `pandas-ta` that explicitly grades individual indicators as BUY, SELL, or NEUTRAL for optimal entry and exit points.

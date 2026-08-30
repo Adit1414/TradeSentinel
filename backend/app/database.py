@@ -93,6 +93,7 @@ async def migrate_db():
         ("indicator_snapshot_weekly_rsi",      "REAL"),
         ("indicator_snapshot_weekly_macd",     "REAL"),
         ("indicator_snapshot_weekly_bb_lower", "REAL"),
+        ("peak_price_since_entry",             "REAL"),
     ]
 
     engine = _get_engine()

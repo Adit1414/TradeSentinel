@@ -403,6 +403,7 @@ A key-value store for runtime-configurable settings (notification credentials, s
 | `indicator_snapshot_supertrend` | Float | Supertrend value at entry |
 | `calculated_break_even_price` | Float | NSE-fee-adjusted break-even |
 | `suggested_stop_loss_price` | Float | Auto-suggested SL level |
+| `peak_price_since_entry` | Float, nullable | Highest close since entry for trailing stop |
 | `pnl_gross` | Float, nullable | Populated on close |
 | `pnl_net_after_fees` | Float, nullable | Populated on close |
 | `reflection_notes` | Text, nullable | Trading journal entry |
@@ -625,14 +626,13 @@ Runs on every intraday scanner tick. For each open paper trade:
 
 **LONG trade exit conditions:**
 
+Trigger a `LONG_TERM_SELL` exit if **ANY** of these 3 conditions are met:
+
 | # | Condition | Category | Flag |
 |---|---|---|---|
-| 1 | Price < VWAP | Stop-Loss | `exit_alert_vwap_sent` |
-| 2 | Supertrend flips bearish | Stop-Loss | `exit_alert_supertrend_sent` |
-| 3 | Price < effective SL | Stop-Loss | `exit_alert_stoploss_sent` |
-| 4 | RSI > 70 | Take-Profit | `exit_alert_rsi_sent` |
-| 5 | MACD bearish crossover | Take-Profit | `exit_alert_macd_sent` |
-| 6 | Price ≥ break-even price | Take-Profit | `exit_alert_breakeven_sent` (one-shot) |
+| 1 | Price closes below 50-W EMA | Stop-Loss | `exit_alert_vwap_sent` |
+| 2 | Price drops 20% from peak since entry | Stop-Loss | `exit_alert_stoploss_sent` |
+| 3 | Price closes > 5% below the 200-W SMA | Stop-Loss | `exit_alert_supertrend_sent` |
 
 **SHORT trade exit conditions:**
 
@@ -984,6 +984,7 @@ erDiagram
         float indicator_snapshot_supertrend
         float calculated_break_even_price
         float suggested_stop_loss_price
+        float peak_price_since_entry
         float pnl_gross
         float pnl_net_after_fees
         text reflection_notes
@@ -1015,13 +1016,18 @@ This is the core intelligence of TradeSentinel. The system checks whether **all 
 3. **RSI**: Must be between **33-50** AND **falling** (weakness, not oversold)
 4. **MACD**: MACD line must be **below** signal line AND histogram **negative** (bearish state)
 
-### Long-Term (Delivery) — Daily timeframe
-1. **200 EMA**: Price must be **above** 200 EMA (long-term uptrend)
+### Long-Term (Delivery) — Weekly timeframe
+1. **200-W SMA**: Price must be **above** 200-W SMA (long-term uptrend)
 2. **Supertrend**: Must be **bullish** (direction == 1)
 3. **RSI**: Must be between **50-70**, **rising**, NOT overbought (strong but not exhausted)
 4. **MACD**: MACD line must be **above** signal line AND histogram **positive**
 
-Only when **all 4 checks pass** does the system fire a confluence alert.
+**Long-Term Exits**: Exits use a Trend-Following & Trailing Stop architecture, rather than mean-reversion oscillators. A sell signal is triggered if ANY of the following structural breakdowns occur:
+1. **Condition A:** Price closes below 50-W EMA.
+2. **Condition B:** Price drops 20% from 52-Week High (scanner) or peak since entry (paper trades/backtest).
+3. **Condition C:** Price closes > 5% below the 200-W SMA.
+
+Only when **all 4 checks pass** does the system fire a confluence buy alert.
 
 ---
 

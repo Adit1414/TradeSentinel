@@ -143,6 +143,9 @@ class PaperTrade(Base):
     # Calculated targets
     calculated_break_even_price: Mapped[float] = mapped_column(Float, nullable=False)
     suggested_stop_loss_price: Mapped[float] = mapped_column(Float, nullable=False)
+    
+    # Trailing peak for long-term exits
+    peak_price_since_entry: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # PnL (populated on close)
     pnl_gross: Mapped[float | None] = mapped_column(Float, nullable=True)

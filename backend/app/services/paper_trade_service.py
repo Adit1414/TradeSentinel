@@ -104,7 +104,7 @@ def calculate_break_even_and_sl(
         Dict with keys: break_even_price, suggested_stop_loss_price,
         total_entry_fees, total_exit_fees.
     """
-    is_delivery = trade_direction == "LONG_TERM"
+    is_delivery = trade_direction in ("LONG_TERM_BUY", "LONG_TERM_SELL")
     calc_fn = calc_charges_delivery if is_delivery else calc_charges_intraday
 
     turnover = entry_price * quantity
@@ -123,7 +123,7 @@ def calculate_break_even_and_sl(
         else:
             suggested_sl = entry_price * 0.995
 
-    elif trade_direction == "SHORT_SELL":
+    elif trade_direction == "INTRADAY_SHORT":
         # Seller receives: sell-side charges on entry + buy-side charges on cover
         entry_charges = calc_fn(turnover, "SELL")
         exit_charges = calc_fn(turnover, "BUY")
@@ -179,18 +179,18 @@ def compute_close_pnl(
     Returns:
         Dict with pnl_gross and pnl_net_after_fees.
     """
-    is_delivery = trade_direction == "LONG_TERM"
+    is_delivery = trade_direction in ("LONG_TERM_BUY", "LONG_TERM_SELL")
     calc_fn = calc_charges_delivery if is_delivery else calc_charges_intraday
 
     entry_turnover = entry_price * quantity
     exit_turnover = exit_price * quantity
 
-    if trade_direction in ("INTRADAY_BUY", "LONG_TERM"):
+    if trade_direction in ("INTRADAY_BUY", "LONG_TERM_BUY", "LONG_TERM_SELL"):
         pnl_gross = (exit_price - entry_price) * quantity
         entry_fees = calc_fn(entry_turnover, "BUY")["total"]
         exit_fees = calc_fn(exit_turnover, "SELL")["total"]
 
-    else:  # SHORT_SELL
+    else:  # INTRADAY_SHORT
         pnl_gross = (entry_price - exit_price) * quantity
         entry_fees = calc_fn(entry_turnover, "SELL")["total"]
         exit_fees = calc_fn(exit_turnover, "BUY")["total"]

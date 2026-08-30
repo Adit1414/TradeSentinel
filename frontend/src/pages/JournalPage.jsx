@@ -112,10 +112,10 @@ function ExpandedRow({ trade, colSpan, onClosed }) {
   const indicators = isLongTerm
     ? [
         { label: '200-W SMA',      value: trade.indicator_snapshot_weekly_sma_200 != null ? `₹${fmt(trade.indicator_snapshot_weekly_sma_200)}` : '—', highlight: 'blue' },
-        { label: 'Weekly RSI (14)', value: trade.indicator_snapshot_weekly_rsi != null ? fmt(trade.indicator_snapshot_weekly_rsi, 1) : '—', highlight: trade.indicator_snapshot_weekly_rsi <= 42 ? 'green' : 'default' },
+        { label: 'Highest Weekly Close', value: trade.peak_price_since_entry != null ? `₹${fmt(trade.peak_price_since_entry)}` : '—', highlight: 'green' },
+        { label: 'Trailing Stop (-20%)', value: trade.peak_price_since_entry != null ? `₹${fmt(trade.peak_price_since_entry * 0.80)}` : '—', highlight: 'red' },
+        { label: 'Weekly RSI (14)', value: trade.indicator_snapshot_weekly_rsi != null ? fmt(trade.indicator_snapshot_weekly_rsi, 1) : '—' },
         { label: 'Weekly MACD',    value: trade.indicator_snapshot_weekly_macd != null ? fmt(trade.indicator_snapshot_weekly_macd, 4) : '—' },
-        { label: 'Weekly BB Lower', value: trade.indicator_snapshot_weekly_bb_lower != null ? `₹${fmt(trade.indicator_snapshot_weekly_bb_lower)}` : '—', highlight: 'amber' },
-        { label: 'MACD Signal',    value: fmt(trade.indicator_snapshot_macd_signal, 4) },
         { label: 'Snapshot',       value: fmtDate(trade.entry_time) },
       ]
     : [

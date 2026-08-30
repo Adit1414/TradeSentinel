@@ -11,23 +11,38 @@ logger = logging.getLogger(__name__)
 
 class TradeSentinelStrategy(Strategy):
     buy_threshold = 3
-    sell_threshold = 3
 
     def init(self):
-        # Pre-calculated scores are already in the dataframe
-        pass
+        self.peak_price_since_entry = 0.0
 
     def next(self):
         buy_score = self.data.BUY_SCORE[-1]
-        sell_score = self.data.SELL_SCORE[-1]
+        current_close = self.data.Close[-1]
+        
+        # safely access indicators, defaulting to NaN if not calculated yet
+        weekly_ema_50 = self.data.weekly_ema_50[-1] if 'weekly_ema_50' in self.data.df.columns else np.nan
+        weekly_sma_200 = self.data.weekly_sma_200[-1] if 'weekly_sma_200' in self.data.df.columns else np.nan
 
         if not self.position:
             if buy_score >= self.buy_threshold:
                 self.buy()
+                self.peak_price_since_entry = current_close
         else:
-            # If we hold a long position, check if we should sell
-            if sell_score >= self.sell_threshold:
+            # We are in a position, update peak price
+            if current_close > self.peak_price_since_entry:
+                self.peak_price_since_entry = current_close
+                
+            # Exit Conditions
+            # Condition A: Price closes below 50-W EMA
+            cond_a = not pd.isna(weekly_ema_50) and current_close < weekly_ema_50
+            # Condition B: Price drops 20% from peak since entry
+            cond_b = current_close <= self.peak_price_since_entry * 0.80
+            # Condition C: Price closes > 5% below the 200-W SMA
+            cond_c = not pd.isna(weekly_sma_200) and current_close < (weekly_sma_200 * 0.95)
+            
+            if cond_a or cond_b or cond_c:
                 self.position.close()
+                self.peak_price_since_entry = 0.0
 
 
 def run_backtest(
@@ -39,6 +54,7 @@ def run_backtest(
 ) -> Dict[str, Any]:
     """
     Run a historical backtest for a ticker using Long-Term indicator logic.
+    (sell_threshold is now ignored, trend-following exits are hardcoded)
     """
     # 1. Fetch data
     df = fetch_ohlcv(ticker, interval="1wk", period=period, use_cache=False)
@@ -46,7 +62,6 @@ def run_backtest(
         raise ValueError(f"No data available for {ticker} over {period}")
 
     # 2. Calculate Indicators
-    # calculate_indicators expects columns open, high, low, close, volume
     ind = calculate_indicators(df, mode="long_term", include_series=True)
     if ind is None or not ind.series:
         raise ValueError(f"Insufficient data to calculate indicators for {ticker}")
@@ -54,7 +69,6 @@ def run_backtest(
     series = ind.series
     
     # 3. Vectorize signals
-    # Rename DataFrame to Backtesting.py expected format
     df_bt = df.rename(columns={
         "open": "Open",
         "high": "High",
@@ -64,33 +78,35 @@ def run_backtest(
     }).copy()
     
     close = df_bt["Close"]
-    
-    # Initialize score columns
     df_bt["BUY_SCORE"] = 0
-    df_bt["SELL_SCORE"] = 0
     
-    # Ensure series are identically-labeled with df_bt index to avoid ValueError
-    ema_200 = series.get("weekly_sma_200") 
-    if ema_200 is not None:
-        ema_200 = ema_200.reindex(close.index)
-        df_bt["BUY_SCORE"] += (close > ema_200).astype(int)
-        df_bt["SELL_SCORE"] += (close < ema_200).astype(int)
+    # Store indicators in df_bt for the strategy to access
+    sma_200 = series.get("weekly_sma_200")
+    if sma_200 is not None:
+        sma_200 = sma_200.reindex(close.index)
+        df_bt["weekly_sma_200"] = sma_200
+        # Buy: 200-W SMA Proximity (within +3% to -5%)
+        df_bt["BUY_SCORE"] += ((close <= sma_200 * 1.03) & (close >= sma_200 * 0.95)).astype(int)
+    else:
+        df_bt["weekly_sma_200"] = np.nan
         
-    st_dir = series.get("supertrend_direction")
-    if st_dir is not None:
-        st_dir = st_dir.reindex(close.index)
-        df_bt["BUY_SCORE"] += (st_dir == 1).astype(int)
-        df_bt["SELL_SCORE"] += (st_dir == -1).astype(int)
-        
+    ema_50 = series.get("weekly_ema_50")
+    if ema_50 is not None:
+        df_bt["weekly_ema_50"] = ema_50.reindex(close.index)
+    else:
+        df_bt["weekly_ema_50"] = np.nan
+
     rsi = series.get("rsi")
     if rsi is not None:
         rsi = rsi.reindex(close.index)
-        rsi_rising = rsi > rsi.shift(1)
-        rsi_falling = rsi < rsi.shift(1)
-        # Buy: 50 < RSI < 70, rising
-        df_bt["BUY_SCORE"] += ((rsi > 50) & (rsi < 70) & rsi_rising).astype(int)
-        # Sell: RSI < 50, falling
-        df_bt["SELL_SCORE"] += ((rsi < 50) & rsi_falling).astype(int)
+        # Buy: RSI <= 42
+        df_bt["BUY_SCORE"] += (rsi <= 42).astype(int)
+        
+    bb_lower = series.get("weekly_bb_lower")
+    if bb_lower is not None:
+        bb_lower = bb_lower.reindex(close.index)
+        # Buy: Near lower BB
+        df_bt["BUY_SCORE"] += (close <= bb_lower * 1.02).astype(int)
         
     macd_line = series.get("macd_line")
     macd_signal = series.get("macd_signal")
@@ -101,12 +117,13 @@ def run_backtest(
         macd_signal = macd_signal.reindex(close.index)
         macd_hist = macd_hist.reindex(close.index)
         
-        df_bt["BUY_SCORE"] += ((macd_line > macd_signal) & (macd_hist > 0)).astype(int)
-        df_bt["SELL_SCORE"] += ((macd_line < macd_signal) & (macd_hist < 0)).astype(int)
+        macd_bullish_cross = macd_line > macd_signal
+        macd_hist_prev = macd_hist.shift(1)
+        hist_rising_from_neg = (macd_hist > macd_hist_prev) & (macd_hist_prev < 0)
+        
+        df_bt["BUY_SCORE"] += (macd_bullish_cross | hist_rising_from_neg).astype(int)
 
     # 4. Run Backtest
-    # Delivery commission estimation: STT(0.1%) + Exchange(0.003%) + Stamp(0.015%) = ~0.12%
-    # We apply 0.12% (0.0012) to closely match real NSE delivery charges.
     bt = Backtest(
         df_bt, 
         TradeSentinelStrategy, 
@@ -116,17 +133,28 @@ def run_backtest(
         trade_on_close=True
     )
     
-    stats = bt.run(buy_threshold=buy_threshold, sell_threshold=sell_threshold)
+    # We pass buy_threshold, but sell_threshold is no longer used by the strategy
+    stats = bt.run(buy_threshold=buy_threshold)
     trades = stats["_trades"]
     
+    years = (df.index[-1] - df.index[0]).days / 365.25
+    strategy_return = stats.get("Return [%]", 0)
+    bnh_return = stats.get("Buy & Hold Return [%]", 0)
+    
+    strat_cagr = ((1 + strategy_return / 100) ** (1 / years) - 1) * 100 if years > 0 else 0
+    bnh_cagr = ((1 + bnh_return / 100) ** (1 / years) - 1) * 100 if years > 0 else 0
+    exposure = stats.get("Exposure Time [%]", 0)
+    
     # 5. Serialize results
-    # Drop internal data series from stats to keep JSON clean
     stats_dict = {
         "start": str(stats.get("Start", "")),
         "end": str(stats.get("End", "")),
         "duration": str(stats.get("Duration", "")),
-        "return_pct": round(stats.get("Return [%]", 0), 2),
-        "buy_hold_return_pct": round(stats.get("Buy & Hold Return [%]", 0), 2),
+        "return_pct": round(strategy_return, 2),
+        "buy_hold_return_pct": round(bnh_return, 2),
+        "strategy_cagr_pct": round(strat_cagr, 2),
+        "buy_hold_cagr_pct": round(bnh_cagr, 2),
+        "cash_drag_pct": round(100 - exposure, 2),
         "max_drawdown_pct": round(stats.get("Max. Drawdown [%]", 0), 2),
         "win_rate_pct": round(stats.get("Win Rate [%]", 0), 2),
         "total_trades": int(stats.get("# Trades", 0)),
@@ -150,15 +178,14 @@ def run_backtest(
                 "duration": str(row.get("Duration", ""))
             })
 
-    # Also append currently open trades (which are not in stats["_trades"])
-    strategy = stats.get("_strategy")
-    if strategy and hasattr(strategy, "trades"):
-        for t in strategy.trades:
-            # t is a Trade object
+    # Also append currently open trades
+    strategy_instance = stats.get("_strategy")
+    if strategy_instance and hasattr(strategy_instance, "trades"):
+        for t in strategy_instance.trades:
             trades_list.append({
                 "size": int(t.size),
                 "entry_price": float(t.entry_price),
-                "exit_price": float(close.iloc[-1]), # Mark to market using last close
+                "exit_price": float(close.iloc[-1]), 
                 "entry_time": str(df_bt.index[t.entry_bar]),
                 "exit_time": "Open",
                 "pnl": float(t.pl),
@@ -166,7 +193,6 @@ def run_backtest(
                 "duration": "Ongoing"
             })
             
-    # Reverse the list so newest trades are at the top (optional, but good UX)
     trades_list.reverse()
 
     return {

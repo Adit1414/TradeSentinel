@@ -160,13 +160,13 @@ export default function BacktestPage() {
                 <div className="glass-card" style={{ padding: 'var(--space-lg)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: 'var(--text-muted)' }}>
                     <Percent size={16} /> 
-                    <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Total Return</span>
+                    <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Strategy CAGR</span>
                   </div>
-                  <div style={{ fontSize: '32px', fontWeight: 700, color: stats.return_pct > 0 ? 'var(--green)' : 'var(--red)' }}>
-                    {stats.return_pct > 0 ? '+' : ''}{stats.return_pct}%
+                  <div style={{ fontSize: '32px', fontWeight: 700, color: stats.strategy_cagr_pct > 0 ? 'var(--green)' : 'var(--red)' }}>
+                    {stats.strategy_cagr_pct > 0 ? '+' : ''}{stats.strategy_cagr_pct}%
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 4 }}>
-                    vs {stats.buy_hold_return_pct}% Buy & Hold
+                    vs {stats.buy_hold_cagr_pct}% Buy & Hold CAGR
                   </div>
                 </div>
 
@@ -199,13 +199,13 @@ export default function BacktestPage() {
                 <div className="glass-card" style={{ padding: 'var(--space-lg)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: 'var(--text-muted)' }}>
                     <DollarSign size={16} /> 
-                    <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Profit Factor</span>
+                    <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Cash Drag</span>
                   </div>
                   <div style={{ fontSize: '32px', fontWeight: 700 }}>
-                    {stats.profit_factor}
+                    {stats.cash_drag_pct}%
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 4 }}>
-                    Gross Profit / Gross Loss
+                    Time spent out of market
                   </div>
                 </div>
 
