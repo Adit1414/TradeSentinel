@@ -98,8 +98,10 @@ def calculate_indicators(
         return None
 
     try:
+        close_col = "adj close" if "adj close" in df.columns else "close"
+
         # ── Current Price ──────────────────────────────────────────────
-        result.price = float(df["close"].iloc[-1])
+        result.price = float(df[close_col].iloc[-1])
 
         # ══════════════════════════════════════════════════════════════
         # LONG-TERM MODE — Weekly "Buy-the-Dip" Macro Indicator Pipeline
@@ -108,8 +110,8 @@ def calculate_indicators(
         # ══════════════════════════════════════════════════════════════
         if mode == "long_term":
             # ── A. 200-Week Simple Moving Average & 50-Week EMA ────────
-            sma200_series = ta.sma(close=df["close"], length=200)
-            ema50_series = ta.ema(close=df["close"], length=50)
+            sma200_series = ta.sma(close=df[close_col], length=200)
+            ema50_series = ta.ema(close=df[close_col], length=50)
             
             if sma200_series is not None and not sma200_series.empty:
                 latest_sma200 = sma200_series.iloc[-1]
@@ -125,14 +127,14 @@ def calculate_indicators(
                 result.series["weekly_ema_50"] = ema50_series.dropna()
 
             # 52-Week High
-            high52_series = df["close"].rolling(window=52, min_periods=1).max()
+            high52_series = df[close_col].rolling(window=52, min_periods=1).max()
             if not high52_series.empty:
                 latest_high52 = high52_series.iloc[-1]
                 result.weekly_52w_high = float(latest_high52) if not pd.isna(latest_high52) else None
                 result.series["weekly_52w_high"] = high52_series
 
             # ── B. Weekly RSI (14) ────────────────────────────────────
-            rsi_series = ta.rsi(close=df["close"], length=14)
+            rsi_series = ta.rsi(close=df[close_col], length=14)
             if rsi_series is not None and len(rsi_series.dropna()) >= 2:
                 result.rsi = float(rsi_series.iloc[-1])
                 result.rsi_prev = float(rsi_series.iloc[-2])
@@ -141,7 +143,7 @@ def calculate_indicators(
                     result.series["rsi"] = rsi_series.dropna()
 
             # ── C. Weekly MACD (12, 26, 9) ───────────────────────────
-            macd_df = ta.macd(close=df["close"], fast=12, slow=26, signal=9)
+            macd_df = ta.macd(close=df[close_col], fast=12, slow=26, signal=9)
             if macd_df is not None and not macd_df.empty:
                 macd_cols = macd_df.columns.tolist()
                 macd_col  = [c for c in macd_cols if c.startswith("MACD_")][0]
@@ -172,7 +174,7 @@ def calculate_indicators(
                         result.series["macd_histogram"] = macd_df[macdh_col].dropna()
 
             # ── D. Weekly Bollinger Bands (20, 2) ────────────────────
-            bb_df = ta.bbands(close=df["close"], length=20, std=2)
+            bb_df = ta.bbands(close=df[close_col], length=20, std=2)
             if bb_df is not None and not bb_df.empty:
                 bb_cols = bb_df.columns.tolist()
                 # pandas-ta names: BBL_20_2.0, BBM_20_2.0, BBU_20_2.0
@@ -202,7 +204,7 @@ def calculate_indicators(
         if mode in ("intraday", "short_selling"):
             if "volume" in df.columns:
                 vwap_series = ta.vwap(
-                    high=df["high"], low=df["low"], close=df["close"],
+                    high=df["high"], low=df["low"], close=df[close_col],
                     volume=df["volume"]
                 )
                 if vwap_series is not None and not vwap_series.empty:
@@ -212,7 +214,7 @@ def calculate_indicators(
 
         # ── Supertrend ─────────────────────────────────────────────────
         st_df = ta.supertrend(
-            high=df["high"], low=df["low"], close=df["close"],
+            high=df["high"], low=df["low"], close=df[close_col],
             length=supertrend_length, multiplier=supertrend_multiplier,
         )
         if st_df is not None and not st_df.empty:
@@ -230,7 +232,7 @@ def calculate_indicators(
                 result.series["supertrend_direction"] = st_df[supertd_col].dropna()
 
         # ── RSI (14) ───────────────────────────────────────────────────
-        rsi_series = ta.rsi(close=df["close"], length=14)
+        rsi_series = ta.rsi(close=df[close_col], length=14)
         if rsi_series is not None and len(rsi_series.dropna()) >= 2:
             result.rsi = float(rsi_series.iloc[-1])
             result.rsi_prev = float(rsi_series.iloc[-2])
@@ -240,7 +242,7 @@ def calculate_indicators(
                 result.series["rsi"] = rsi_series.dropna()
 
         # ── MACD (12, 26, 9) ──────────────────────────────────────────
-        macd_df = ta.macd(close=df["close"], fast=12, slow=26, signal=9)
+        macd_df = ta.macd(close=df[close_col], fast=12, slow=26, signal=9)
         if macd_df is not None and not macd_df.empty:
             macd_cols = macd_df.columns.tolist()
             # Columns: MACD_12_26_9, MACDh_12_26_9, MACDs_12_26_9
@@ -301,7 +303,7 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
             "open": round(float(row["open"]), 2),
             "high": round(float(row["high"]), 2),
             "low": round(float(row["low"]), 2),
-            "close": round(float(row["close"]), 2),
+            "close": round(float(row["adj close"] if "adj close" in row else row["close"]), 2),
         })
 
     # Build indicator time-value pairs

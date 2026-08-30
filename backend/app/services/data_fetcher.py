@@ -83,6 +83,8 @@ def fetch_ohlcv(
 
         # Keep only OHLCV columns
         required = ["open", "high", "low", "close", "volume"]
+        if "adj close" in df.columns:
+            required.append("adj close")
         available = [c for c in required if c in df.columns]
         df = df[available].copy()
 

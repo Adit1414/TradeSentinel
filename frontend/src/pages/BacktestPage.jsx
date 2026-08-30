@@ -9,6 +9,7 @@ export default function BacktestPage() {
   const [period, setPeriod] = useState('10y');
   const [capital, setCapital] = useState(100000);
   const [buyThreshold, setBuyThreshold] = useState(3);
+  const [exitStrategy, setExitStrategy] = useState(2);
 
   const mutation = useMutation({
     mutationFn: (data) => backtestApi.run(data).then((r) => r.data),
@@ -29,6 +30,7 @@ export default function BacktestPage() {
       period,
       initial_capital: parseFloat(capital),
       buy_threshold: parseInt(buyThreshold),
+      exit_strategy: parseInt(exitStrategy),
     });
   };
 
@@ -100,11 +102,13 @@ export default function BacktestPage() {
               </span>
             </div>
 
-            <div className="form-group" style={{ padding: 'var(--space-md)', backgroundColor: 'var(--bg-lighter)', borderRadius: 'var(--radius-md)' }}>
-              <label className="form-label" style={{ marginBottom: '8px' }}>Exit Strategy</label>
-              <div style={{ fontSize: '13px', color: 'var(--text-color)', lineHeight: 1.4 }}>
-                <strong>Structural Breakdown</strong> (20% Trailing Stop or Loss of 200-W SMA)
-              </div>
+            <div className="form-group">
+              <label className="form-label">Exit Strategy</label>
+              <select className="input" value={exitStrategy} onChange={(e) => setExitStrategy(e.target.value)}>
+                <option value="1">1. Pure Oscillators (RSI > 70 or BB Upper)</option>
+                <option value="2">2. Structural Breakdown (Trailing Stop or 200 SMA Loss)</option>
+                <option value="3">3. Macro Momentum Shift (RSI > 70 + MACD Bearish)</option>
+              </select>
             </div>
 
             <button 
@@ -155,13 +159,13 @@ export default function BacktestPage() {
                 <div className="glass-card" style={{ padding: 'var(--space-lg)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: 'var(--text-muted)' }}>
                     <Percent size={16} /> 
-                    <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Strategy CAGR</span>
+                    <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Total Return</span>
                   </div>
-                  <div style={{ fontSize: '32px', fontWeight: 700, color: stats.strategy_cagr_pct > 0 ? 'var(--green)' : 'var(--red)' }}>
-                    {stats.strategy_cagr_pct > 0 ? '+' : ''}{stats.strategy_cagr_pct}%
+                  <div style={{ fontSize: '32px', fontWeight: 700, color: stats.return_pct > 0 ? 'var(--green)' : 'var(--red)' }}>
+                    {stats.return_pct > 0 ? '+' : ''}{stats.return_pct}%
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 4 }}>
-                    vs {stats.buy_hold_cagr_pct}% Buy & Hold CAGR
+                    CAGR: {stats.strategy_cagr_pct}% vs {stats.buy_hold_cagr_pct}% (B&H)
                   </div>
                 </div>
 

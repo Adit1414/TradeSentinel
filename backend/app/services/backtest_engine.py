@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 class TradeSentinelStrategy(Strategy):
     buy_threshold = 3
+    exit_strategy = 2
 
     def init(self):
         self.peak_price_since_entry = 0.0
@@ -21,6 +22,10 @@ class TradeSentinelStrategy(Strategy):
         
         # safely access indicators, defaulting to NaN if not calculated yet
         weekly_sma_200 = self.data.weekly_sma_200[-1] if 'weekly_sma_200' in self.data.df.columns else np.nan
+        weekly_rsi = self.data.rsi[-1] if 'rsi' in self.data.df.columns else np.nan
+        weekly_bb_upper = self.data.weekly_bb_upper[-1] if 'weekly_bb_upper' in self.data.df.columns else np.nan
+        macd_line = self.data.macd_line[-1] if 'macd_line' in self.data.df.columns else np.nan
+        macd_signal = self.data.macd_signal[-1] if 'macd_signal' in self.data.df.columns else np.nan
 
         if not self.position:
             if buy_score >= self.buy_threshold:
@@ -31,13 +36,29 @@ class TradeSentinelStrategy(Strategy):
             if current_close > self.peak_price_since_entry:
                 self.peak_price_since_entry = current_close
                 
-            # Exit Conditions
-            # Condition B: Price drops 20% from peak since entry
-            cond_b = current_close <= self.peak_price_since_entry * 0.80
-            # Condition C: Price closes > 10% below the 200-W SMA
-            cond_c = not pd.isna(weekly_sma_200) and current_close < (weekly_sma_200 * 0.90)
+            # Evaluate exit based on exit_strategy
+            exit_triggered = False
             
-            if cond_b or cond_c:
+            if self.exit_strategy == 1:
+                # Option 1: Pure Oscillators
+                if (not pd.isna(weekly_rsi) and weekly_rsi >= 70) or \
+                   (not pd.isna(weekly_bb_upper) and current_close >= weekly_bb_upper):
+                    exit_triggered = True
+                    
+            elif self.exit_strategy == 2:
+                # Option 2: Structural Breakdown
+                cond_b = current_close <= self.peak_price_since_entry * 0.80
+                cond_c = not pd.isna(weekly_sma_200) and current_close < (weekly_sma_200 * 0.90)
+                if cond_b or cond_c:
+                    exit_triggered = True
+                    
+            elif self.exit_strategy == 3:
+                # Option 3: Macro Momentum Shift
+                if not pd.isna(weekly_rsi) and not pd.isna(macd_line) and not pd.isna(macd_signal):
+                    if weekly_rsi >= 70 and macd_line < macd_signal:
+                        exit_triggered = True
+            
+            if exit_triggered:
                 self.position.close()
                 self.peak_price_since_entry = 0.0
 
@@ -47,11 +68,11 @@ def run_backtest(
     period: str, 
     initial_capital: float, 
     buy_threshold: int, 
-    sell_threshold: int
+    sell_threshold: int,
+    exit_strategy: int = 2
 ) -> Dict[str, Any]:
     """
     Run a historical backtest for a ticker using Long-Term indicator logic.
-    (sell_threshold is now ignored, trend-following exits are hardcoded)
     """
     # 1. Fetch data
     df = fetch_ohlcv(ticker, interval="1wk", period=period, use_cache=False)
@@ -66,11 +87,12 @@ def run_backtest(
     series = ind.series
     
     # 3. Vectorize signals
+    close_col = "adj close" if "adj close" in df.columns else "close"
     df_bt = df.rename(columns={
         "open": "Open",
         "high": "High",
         "low": "Low",
-        "close": "Close",
+        close_col: "Close",
         "volume": "Volume"
     }).copy()
     
@@ -98,12 +120,21 @@ def run_backtest(
         rsi = rsi.reindex(close.index)
         # Buy: RSI <= 42
         df_bt["BUY_SCORE"] += (rsi <= 42).astype(int)
+        df_bt["rsi"] = rsi
+    else:
+        df_bt["rsi"] = np.nan
         
     bb_lower = series.get("weekly_bb_lower")
     if bb_lower is not None:
         bb_lower = bb_lower.reindex(close.index)
         # Buy: Near lower BB
         df_bt["BUY_SCORE"] += (close <= bb_lower * 1.02).astype(int)
+        
+    bb_upper = series.get("weekly_bb_upper")
+    if bb_upper is not None:
+        df_bt["weekly_bb_upper"] = bb_upper.reindex(close.index)
+    else:
+        df_bt["weekly_bb_upper"] = np.nan
         
     macd_line = series.get("macd_line")
     macd_signal = series.get("macd_signal")
@@ -119,6 +150,11 @@ def run_backtest(
         hist_rising_from_neg = (macd_hist > macd_hist_prev) & (macd_hist_prev < 0)
         
         df_bt["BUY_SCORE"] += (macd_bullish_cross | hist_rising_from_neg).astype(int)
+        df_bt["macd_line"] = macd_line
+        df_bt["macd_signal"] = macd_signal
+    else:
+        df_bt["macd_line"] = np.nan
+        df_bt["macd_signal"] = np.nan
 
     # 4. Run Backtest
     bt = Backtest(
@@ -130,8 +166,7 @@ def run_backtest(
         trade_on_close=True
     )
     
-    # We pass buy_threshold, but sell_threshold is no longer used by the strategy
-    stats = bt.run(buy_threshold=buy_threshold)
+    stats = bt.run(buy_threshold=buy_threshold, exit_strategy=exit_strategy)
     trades = stats["_trades"]
     
     years = (df.index[-1] - df.index[0]).days / 365.25

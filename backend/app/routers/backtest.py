@@ -12,6 +12,7 @@ class BacktestRequest(BaseModel):
     initial_capital: float = 100000.0
     buy_threshold: int = 3
     sell_threshold: int = 3
+    exit_strategy: int = 2
 
 @router.post("/run")
 def execute_backtest(request: BacktestRequest) -> Dict[str, Any]:
@@ -22,7 +23,8 @@ def execute_backtest(request: BacktestRequest) -> Dict[str, Any]:
             period=request.period,
             initial_capital=request.initial_capital,
             buy_threshold=request.buy_threshold,
-            sell_threshold=request.sell_threshold
+            sell_threshold=request.sell_threshold,
+            exit_strategy=request.exit_strategy
         )
         return results
     except ValueError as e:
