@@ -134,15 +134,31 @@ export default function ChartPage() {
           </div>
 
           <div className="confluence-checks">
-            {Object.entries(confluence.checks || {}).map(([key, passed]) => (
+            {Object.entries(confluence.indicator_signals || {}).map(([key, signal]) => (
               <div key={key} className="confluence-check">
-                <div className={`confluence-check-icon ${passed ? 'confluence-check-pass' : 'confluence-check-fail'}`}>
-                  {passed ? '✓' : '✗'}
+                <div 
+                  className={`confluence-check-icon ${
+                    signal === 'BUY' ? 'confluence-check-pass' : 
+                    signal === 'SELL' ? 'confluence-check-fail' : 
+                    ''
+                  }`}
+                  style={{
+                    backgroundColor: signal === 'NEUTRAL' ? 'var(--bg-tertiary)' : undefined,
+                    color: signal === 'NEUTRAL' ? 'var(--text-muted)' : undefined,
+                    border: signal === 'NEUTRAL' ? '1px solid var(--border)' : undefined,
+                  }}
+                >
+                  {signal === 'BUY' ? '↑' : signal === 'SELL' ? '↓' : '—'}
                 </div>
                 <span>
-                  <strong style={{ textTransform: 'uppercase' }}>{key}</strong>
+                  <strong style={{ 
+                    textTransform: 'uppercase', 
+                    color: signal === 'BUY' ? 'var(--green)' : signal === 'SELL' ? 'var(--red)' : 'var(--text-muted)'
+                  }}>
+                    {key.replace('weekly_', '')} · {signal}
+                  </strong>
                   {confluence.details?.[key] && (
-                    <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: 10 }}>
+                    <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: 10, marginTop: 2 }}>
                       {confluence.details[key]}
                     </span>
                   )}

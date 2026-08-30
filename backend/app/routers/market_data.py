@@ -75,7 +75,8 @@ async def get_indicators(
         "price": indicators.price,
         "confluence": {
             "is_aligned": confluence.is_aligned,
-            "checks": confluence.checks,
+            "signal": confluence.signal,
+            "indicator_signals": confluence.indicator_signals,
             "details": confluence.details,
         },
     }
