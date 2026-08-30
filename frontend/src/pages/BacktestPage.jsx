@@ -117,6 +117,7 @@ export default function BacktestPage() {
                 <option value="2">2. Macro Trend Follower (10W/40W EMA Cross)</option>
                 <option value="3">3. 52-Week High Breakout (Stage 2)</option>
                 <option value="4">4. Weekly Trend Pullback (10W EMA Dip)</option>
+                <option value="5">5. Pure 40-Week SMA Trend (Zero-Lag)</option>
               </select>
             </div>
 
@@ -129,6 +130,7 @@ export default function BacktestPage() {
                 <option value="4">4. Macro Trend Breakdown (10W &lt; 40W EMA)</option>
                 <option value="5">5. Weekly Supertrend Flip (10, 3)</option>
                 <option value="6">6. 20-Week Low Channel Breakdown</option>
+                <option value="7">7. 40-Week SMA Loss (Zero-Lag)</option>
               </select>
             </div>
 

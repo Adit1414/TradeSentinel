@@ -47,6 +47,7 @@ class IndicatorResult:
     # ── Weekly indicators (long_term mode only) ────────────────────────────────
     # 200-Week Simple Moving Average
     weekly_sma_200: Optional[float] = None
+    weekly_sma_40: Optional[float] = None
     weekly_ema_50: Optional[float] = None
     weekly_ema_10: Optional[float] = None
     weekly_ema_40: Optional[float] = None
@@ -124,6 +125,13 @@ def calculate_indicators(
                 )
                 if include_series:
                     result.series["weekly_sma_200"] = sma200_series.dropna()
+                    
+            sma40_series = ta.sma(close=df[close_col], length=40)
+            if sma40_series is not None and not sma40_series.empty:
+                latest_sma40 = sma40_series.iloc[-1]
+                result.weekly_sma_40 = float(latest_sma40) if not pd.isna(latest_sma40) else None
+                if include_series:
+                    result.series["weekly_sma_40"] = sma40_series.dropna()
                     
             if ema50_series is not None and not ema50_series.empty:
                 latest_ema50 = ema50_series.iloc[-1]
@@ -355,7 +363,7 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
                     for idx, v in overlay_series.items()
                 ]
         else:  # long_term — weekly SMA-200 and BB bands as overlays
-            for overlay_key in ("weekly_sma_200", "weekly_ema_10", "weekly_ema_40", "weekly_bb_lower", "weekly_bb_mid", "weekly_bb_upper"):
+            for overlay_key in ("weekly_sma_200", "weekly_sma_40", "weekly_ema_10", "weekly_ema_40", "weekly_bb_lower", "weekly_bb_mid", "weekly_bb_upper"):
                 overlay_series = result.series.get(overlay_key)
                 if overlay_series is not None:
                     indicators[overlay_key] = [
@@ -410,6 +418,7 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
             "macd_crossover": result.macd_crossover if result else "none",
             # Weekly long-term indicators
             "weekly_sma_200": result.weekly_sma_200 if result else None,
+            "weekly_sma_40": result.weekly_sma_40 if result else None,
             "weekly_ema_10": result.weekly_ema_10 if result else None,
             "weekly_ema_40": result.weekly_ema_40 if result else None,
             "weekly_bb_lower": result.weekly_bb_lower if result else None,

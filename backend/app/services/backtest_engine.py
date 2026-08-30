@@ -28,6 +28,7 @@ class TradeSentinelStrategy(Strategy):
         macd_signal = self.data.macd_signal[-1] if 'macd_signal' in self.data.df.columns else np.nan
         weekly_ema_10 = self.data.weekly_ema_10[-1] if 'weekly_ema_10' in self.data.df.columns else np.nan
         weekly_ema_40 = self.data.weekly_ema_40[-1] if 'weekly_ema_40' in self.data.df.columns else np.nan
+        weekly_sma_40 = self.data.weekly_sma_40[-1] if 'weekly_sma_40' in self.data.df.columns else np.nan
         weekly_52w_high_prev = self.data.weekly_52w_high[-2] if 'weekly_52w_high' in self.data.df.columns and len(self.data.weekly_52w_high) > 1 else np.nan
         weekly_20w_low_prev = self.data.weekly_20w_low[-2] if 'weekly_20w_low' in self.data.df.columns and len(self.data.weekly_20w_low) > 1 else np.nan
         weekly_supertrend_bullish = self.data.weekly_supertrend_bullish[-1] if 'weekly_supertrend_bullish' in self.data.df.columns else False
@@ -55,6 +56,12 @@ class TradeSentinelStrategy(Strategy):
                 # Option 4: Weekly Trend Pullback (10W EMA Dip)
                 if not pd.isna(weekly_ema_10) and not pd.isna(weekly_ema_40):
                     if weekly_ema_10 > weekly_ema_40 and current_low <= weekly_ema_10 * 1.01 and current_close > weekly_ema_10:
+                        self.buy()
+                        self.peak_price_since_entry = current_close
+            elif self.entry_strategy == 5:
+                # Option 5: Pure 40-Week SMA Trend (Zero-Lag)
+                if not pd.isna(weekly_sma_40):
+                    if current_close > weekly_sma_40:
                         self.buy()
                         self.peak_price_since_entry = current_close
         else:
@@ -99,6 +106,12 @@ class TradeSentinelStrategy(Strategy):
                 # Option 6: 20-Week Low Channel Breakdown
                 if not pd.isna(weekly_20w_low_prev):
                     if current_close < weekly_20w_low_prev:
+                        exit_triggered = True
+                        
+            elif self.exit_strategy == 7:
+                # Option 7: 40-Week SMA Loss (Zero-Lag)
+                if not pd.isna(weekly_sma_40):
+                    if current_close < weekly_sma_40:
                         exit_triggered = True
             
             if exit_triggered:
@@ -157,6 +170,12 @@ def run_backtest(
         df_bt["weekly_ema_50"] = ema_50.reindex(close.index)
     else:
         df_bt["weekly_ema_50"] = np.nan
+        
+    sma_40 = series.get("weekly_sma_40")
+    if sma_40 is not None:
+        df_bt["weekly_sma_40"] = sma_40.reindex(close.index)
+    else:
+        df_bt["weekly_sma_40"] = np.nan
         
     ema_10 = series.get("weekly_ema_10")
     if ema_10 is not None:
