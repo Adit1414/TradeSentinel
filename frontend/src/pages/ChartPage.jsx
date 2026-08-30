@@ -35,7 +35,6 @@ const INTERVAL_MODE_MAP = {
 
 const MODE_DEFAULT_INTERVAL_MAP = {
   intraday: '5m',
-  short_selling: '5m',
   long_term: '1d',
 };
 
@@ -53,9 +52,6 @@ export default function ChartPage() {
   const handleIntervalChange = (newInterval) => {
     setInterval(newInterval);
     const impliedMode = INTERVAL_MODE_MAP[newInterval];
-    if (impliedMode === 'intraday' && mode === 'short_selling') {
-      return; // Keep short_selling active for intraday intervals
-    }
     setMode(impliedMode || 'intraday');
   };
 
@@ -116,14 +112,20 @@ export default function ChartPage() {
 
       {/* Confluence Status */}
       {confluence && (
-        <div className={`confluence-card ${confluence.is_aligned ? 'confluence-card-aligned' : ''}`}>
+        <div 
+          className={`confluence-card ${confluence.is_aligned ? 'confluence-card-aligned' : ''}`}
+          style={{
+            borderColor: confluence.signal === 'BUY' ? 'var(--green)' : confluence.signal === 'SELL' ? 'var(--red)' : 'var(--border)',
+            backgroundColor: confluence.signal === 'BUY' ? 'rgba(0, 230, 118, 0.05)' : confluence.signal === 'SELL' ? 'rgba(255, 23, 68, 0.05)' : 'var(--bg-card)'
+          }}
+        >
           <div className="confluence-header">
             <span style={{ fontSize: 20 }}>
               {confluence.is_aligned ? '🎯' : '⏳'}
             </span>
-            <span className="confluence-title">
+            <span className="confluence-title" style={{ color: confluence.signal === 'BUY' ? 'var(--green)' : confluence.signal === 'SELL' ? 'var(--red)' : 'inherit' }}>
               {confluence.is_aligned
-                ? 'All 4 Indicators Aligned!'
+                ? `All 4 Indicators Aligned (${confluence.signal})`
                 : 'Waiting for Confluence'}
             </span>
             <span className={`badge ${mode === 'long_term' ? 'badge-blue' : 'badge-amber'}`}>

@@ -38,7 +38,7 @@ class WatchlistItem(Base):
     display_name: Mapped[str] = mapped_column(String(100), nullable=True)
     mode: Mapped[str] = mapped_column(
         String(20), nullable=False
-    )  # "intraday" | "short_selling" | "long_term"
+    )  # "intraday" | "long_term"
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
@@ -56,7 +56,7 @@ class Position(Base):
     ticker: Mapped[str] = mapped_column(String(20), nullable=False)
     trade_type: Mapped[str] = mapped_column(
         String(20), nullable=False
-    )  # "intraday" | "short_selling" | "long_term"
+    )  # "intraday" | "long_term"
     direction: Mapped[str] = mapped_column(
         String(4), nullable=False
     )  # "BUY" | "SELL"
@@ -100,7 +100,7 @@ class PaperTrade(Base):
 
     Captures an exact indicator snapshot at entry time, calculates
     NSE-accurate break-even and stop-loss, and tracks PnL on close.
-    trade_direction values: INTRADAY_BUY | SHORT_SELL | LONG_TERM
+    trade_direction values: INTRADAY_BUY | INTRADAY_SHORT | LONG_TERM_BUY | LONG_TERM_SELL
     """
 
     __tablename__ = "paper_trades"
@@ -110,7 +110,7 @@ class PaperTrade(Base):
     ticker: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     trade_direction: Mapped[str] = mapped_column(
         String(20), nullable=False
-    )  # INTRADAY_BUY | SHORT_SELL | LONG_TERM
+    )  # INTRADAY_BUY | INTRADAY_SHORT | LONG_TERM_BUY | LONG_TERM_SELL
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(10), default="OPEN")  # OPEN | CLOSED
 
@@ -134,7 +134,7 @@ class PaperTrade(Base):
     indicator_snapshot_ema_200: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # ── Long-Term (Weekly) indicator snapshot ─────────────────────────────────
-    # Populated only for LONG_TERM trades; NULL for INTRADAY_BUY / SHORT_SELL.
+    # Populated only for LONG_TERM_BUY / LONG_TERM_SELL trades; NULL for INTRADAY_BUY / INTRADAY_SHORT.
     indicator_snapshot_weekly_sma_200: Mapped[float | None] = mapped_column(Float, nullable=True)
     indicator_snapshot_weekly_rsi: Mapped[float | None] = mapped_column(Float, nullable=True)
     indicator_snapshot_weekly_macd: Mapped[float | None] = mapped_column(Float, nullable=True)

@@ -15,13 +15,6 @@ const MODE_CONFIG = {
     color: 'green',
     badgeClass: 'badge-green',
   },
-  short_selling: {
-    label: 'Short Selling',
-    sublabel: 'Sell Side · 5min',
-    icon: TrendingDown,
-    color: 'red',
-    badgeClass: 'badge-red',
-  },
   long_term: {
     label: 'Long-Term',
     sublabel: 'Delivery · Daily',

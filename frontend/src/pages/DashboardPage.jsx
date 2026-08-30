@@ -13,10 +13,9 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* 3-column watchlist grid */}
+      {/* 2-column watchlist grid */}
       <div className="dashboard-grid">
         <WatchlistPanel mode="intraday" />
-        <WatchlistPanel mode="short_selling" />
         <WatchlistPanel mode="long_term" />
       </div>
 
@@ -34,7 +33,7 @@ export default function DashboardPage() {
             <Target size={36} strokeWidth={1.5} />
             <p>No confluence alerts yet</p>
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-              Add stocks to your watchlists — the scanner will notify you when all 4 indicators align
+              Add stocks to your watchlists — the scanner will notify you when all indicators align
             </p>
           </div>
         ) : (
@@ -57,7 +56,7 @@ export default function DashboardPage() {
               <div className="alert-card-content">
                 <div className="alert-card-title">
                   <span className="mono" style={{ marginRight: 8 }}>{alert.ticker}</span>
-                  <span className={`badge ${alert.mode === 'short_selling' ? 'badge-red' : alert.mode === 'long_term' ? 'badge-blue' : 'badge-green'}`}>
+                  <span className={`badge ${alert.mode === 'long_term' ? 'badge-blue' : 'badge-green'}`}>
                     {alert.mode?.replace('_', ' ')}
                   </span>
                 </div>

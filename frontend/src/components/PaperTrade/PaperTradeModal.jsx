@@ -59,7 +59,7 @@ function computeLive(direction, entryPrice, qty, vwap, supertrend, ema200) {
   if (price <= 0 || quantity <= 0) return null;
 
   const turnover = price * quantity;
-  const isDelivery = direction === 'LONG_TERM';
+  const isDelivery = direction.startsWith('LONG_TERM');
 
   let entryFees, exitFees, breakEven, suggestedSL;
 
@@ -70,14 +70,14 @@ function computeLive(direction, entryPrice, qty, vwap, supertrend, ema200) {
     const v = parseFloat(vwap);
     suggestedSL = v > 0 ? v : price * 0.995;
 
-  } else if (direction === 'SHORT_SELL') {
+  } else if (direction === 'INTRADAY_SHORT') {
     entryFees = calcCharges(turnover, 'SELL', false);
     exitFees  = calcCharges(turnover, 'BUY', false);
     breakEven = price - (entryFees + exitFees) / quantity;
     const v = parseFloat(vwap), st = parseFloat(supertrend);
     suggestedSL = v > 0 && v > price ? v : st > 0 ? st : price * 1.005;
 
-  } else { // LONG_TERM
+  } else { // LONG_TERM_BUY or LONG_TERM_SELL
     entryFees = calcCharges(turnover, 'BUY', true);
     exitFees  = calcCharges(turnover, 'SELL', true);
     breakEven = price + (entryFees + exitFees) / quantity;
@@ -104,28 +104,35 @@ const DIRECTION_CONFIG = {
     badge: 'dir-buy',
     mode: 'intraday',
   },
-  SHORT_SELL: {
-    label: 'Short Sell',
+  INTRADAY_SHORT: {
+    label: 'Intraday Short',
     sublabel: 'MIS · Short',
     icon: TrendingDown,
     activeClass: 'active-short',
     badge: 'dir-short',
-    mode: 'short_selling',
+    mode: 'intraday',
   },
-  LONG_TERM: {
-    label: 'Long-Term',
-    sublabel: 'CNC · Delivery',
-    icon: Clock,
+  LONG_TERM_BUY: {
+    label: 'Long-Term Buy',
+    sublabel: 'CNC · Buy the Dip',
+    icon: TrendingUp,
     activeClass: 'active-long',
     badge: 'dir-long',
+    mode: 'long_term',
+  },
+  LONG_TERM_SELL: {
+    label: 'Long-Term Sell',
+    sublabel: 'CNC · Profit Booking',
+    icon: TrendingDown,
+    activeClass: 'active-short',
+    badge: 'dir-short',
     mode: 'long_term',
   },
 };
 
 const MODE_TO_DIRECTION = {
   intraday: 'INTRADAY_BUY',
-  short_selling: 'SHORT_SELL',
-  long_term: 'LONG_TERM',
+  long_term: 'LONG_TERM_BUY',
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -176,7 +183,7 @@ export default function PaperTradeModal({ ticker, initialMode = 'intraday', onCl
       const { data } = await paperTradeApi.snapshot(ticker, cfg.mode);
 
       let fetched;
-      if (direction === 'LONG_TERM') {
+      if (direction.startsWith('LONG_TERM')) {
         // Map weekly indicator fields from the snapshot
         fetched = {
           price:        String(data.price ?? ''),
@@ -230,7 +237,7 @@ export default function PaperTradeModal({ ticker, initialMode = 'intraday', onCl
       fields.vwap,
       fields.supertrend,
       // For LONG_TERM: use the weekly 200-SMA as the SL anchor
-      direction === 'LONG_TERM' ? fields.weeklySma200 : fields.ema200,
+      direction.startsWith('LONG_TERM') ? fields.weeklySma200 : fields.ema200,
     );
     setLiveCalc(result);
   }, [direction, fields]);
@@ -262,7 +269,7 @@ export default function PaperTradeModal({ ticker, initialMode = 'intraday', onCl
   const handleConfirm = () => {
     if (!fields.price || !fields.quantity) return;
 
-    const isLongTerm = direction === 'LONG_TERM';
+    const isLongTerm = direction.startsWith('LONG_TERM');
 
     openMutation.mutate({
       ticker,
@@ -389,7 +396,7 @@ export default function PaperTradeModal({ ticker, initialMode = 'intraday', onCl
                   />
                 </div>
 
-                {direction === 'LONG_TERM' ? (
+                {direction.startsWith('LONG_TERM') ? (
                   // ── Weekly macro indicator fields for Long-Term ──
                   <>
                     {renderField('weeklySma200', '200-W SMA (₹)', '—')}

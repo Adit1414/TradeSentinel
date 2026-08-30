@@ -16,8 +16,8 @@ _TG_API = "https://api.telegram.org/bot{token}/sendMessage"
 async def send_telegram_alert(
     ticker: str,
     mode: str,
-    price: float,
     details: dict,
+    signal: str,
     bot_token: Optional[str] = None,
     chat_id: Optional[str] = None,
 ) -> bool:
@@ -26,9 +26,9 @@ async def send_telegram_alert(
 
     Args:
         ticker: Stock symbol.
-        mode: Trading mode ("intraday", "short_selling", "long_term").
         price: Current price at alert time.
         details: Dict with per-indicator detail strings.
+        signal: "BUY" or "SELL".
         bot_token: Telegram bot token (falls back to settings).
         chat_id: Telegram chat ID (falls back to settings).
 
@@ -43,14 +43,12 @@ async def send_telegram_alert(
         logger.warning("Telegram not configured — skipping notification")
         return False
 
-    # Format mode display
-    mode_labels = {
-        "intraday": "📈 INTRADAY (Buy Side)",
-        "short_selling": "📉 SHORT SELLING (Sell Side)",
-        "long_term": "🏦 LONG-TERM (Delivery)",
-    }
-
-    mode_label = mode_labels.get(mode, mode.upper())
+    if mode == "intraday":
+        mode_label = "📈 INTRADAY (Buy Side)" if signal == "BUY" else "📉 INTRADAY (Sell Side)"
+    elif mode == "long_term":
+        mode_label = "🏦 LONG-TERM (Buy-the-Dip)" if signal == "BUY" else "🏦 LONG-TERM (Profit-Booking)"
+    else:
+        mode_label = mode.upper()
 
     # Long-Term mode gets a dedicated "Value Alert" format
     if mode == "long_term":
@@ -64,10 +62,10 @@ async def send_telegram_alert(
         rsi_ok  = "✓" in details.get("weekly_rsi", "")
         macd_ok = "✓" in details.get("weekly_macd", "")
         bb_ok   = "✓" in details.get("weekly_bb_lower", "")
-
-        lines = [
-            f"🏦 *[LONG-TERM VALUE ALERT]* {ticker}",
-            f"",
+        if signal == "BUY":
+            lines = [
+                f"🏦 *[LONG-TERM VALUE ALERT]* {ticker}",
+                f"",
             f"💰 Price: ₹{price:.2f}",
             f"Mode: {mode_label}",
             f"",
@@ -76,11 +74,24 @@ async def send_telegram_alert(
             f"{('✅' if rsi_ok else '🔴')} Weekly RSI: {rsi_str} ({'Discounted' if rsi_ok else 'Not discounted'})",
             f"{('✅' if macd_ok else '🔴')} MACD Weekly {'Cross/Recovery' if macd_ok else 'No signal'}",
             f"{('✅' if bb_ok else '🔴')} Lower Bollinger Band {'Touch' if bb_ok else 'Not touched'}",
-            f"",
             f"⚠️ _This is an educational alert, not financial advice._",
         ]
+        else:
+            lines = [
+                f"🏦 *[PROFIT-TAKING ALERT]* {ticker} - Maximum Long-Term Value Reached",
+                f"",
+                f"💰 Price: ₹{price:.2f}",
+                f"Mode: {mode_label}",
+                f"",
+                f"*Weekly Macro Confluence (Exhaustion):*",
+            ]
+            for key, detail in details.items():
+                emoji = "✅" if "✓" in detail else "🔴"
+                lines.append(f"{emoji} {detail}")
+            lines.append("")
+            lines.append(f"⚠️ _This is an educational alert, not financial advice._")
     else:
-        # Build standard message for intraday / short_selling
+        # Build standard message for intraday
         lines = [
             f"🎯 *CONFLUENCE ALERT*",
             f"",
@@ -165,8 +176,8 @@ async def test_telegram_connection(
 async def send_ntfy_alert(
     ticker: str,
     mode: str,
-    price: float,
     details: dict,
+    signal: str,
     topic: Optional[str] = None,
 ) -> bool:
     """
@@ -189,12 +200,12 @@ async def send_ntfy_alert(
         logger.warning("Ntfy topic not configured — skipping ntfy notification")
         return False
 
-    mode_labels = {
-        "intraday": "Intraday (Buy Side)",
-        "short_selling": "Short Selling (Sell Side)",
-        "long_term": "Long-Term (Delivery)",
-    }
-    mode_label = mode_labels.get(mode, mode.upper())
+    if mode == "intraday":
+        mode_label = "Intraday (Buy Side)" if signal == "BUY" else "Intraday (Sell Side)"
+    elif mode == "long_term":
+        mode_label = "Long-Term (Delivery)" if signal == "BUY" else "Long-Term (Profit-Booking)"
+    else:
+        mode_label = mode.upper()
 
     if mode == "long_term":
         # Long-Term specific compact format
@@ -208,18 +219,23 @@ async def send_ntfy_alert(
         macd_ok = "✓" in details.get("weekly_macd", "")
         bb_ok   = "✓" in details.get("weekly_bb_lower", "")
 
-        title = f"[LONG-TERM VALUE ALERT] {ticker}"
-        message = (
-            f"Price: ₹{price:.2f}"
-            + (" | Near 200-W SMA" if sma_ok else "")
-            + f" | Weekly RSI: {rsi_str} ({'Discounted' if rsi_ok else 'Not discounted'})"
-            + (" | Lower Bollinger Band Touch" if bb_ok else "")
-            + (" | MACD Weekly Cross" if macd_ok else "")
-            + "\n\n⚠️ Educational alert only. Not financial advice."
-        )
-        tags = "chart_with_upwards_trend,moneybag"
+        if signal == "BUY":
+            title = f"[LONG-TERM VALUE ALERT] {ticker}"
+            message = (
+                f"Price: ₹{price:.2f}"
+                + (" | Near 200-W SMA" if sma_ok else "")
+                + f" | Weekly RSI: {rsi_str} ({'Discounted' if rsi_ok else 'Not discounted'})"
+                + (" | Lower Bollinger Band Touch" if bb_ok else "")
+                + (" | MACD Weekly Cross" if macd_ok else "")
+                + "\n\n⚠️ Educational alert only. Not financial advice."
+            )
+            tags = "chart_with_upwards_trend,moneybag"
+        else:
+            title = f"[PROFIT-TAKING ALERT] {ticker}"
+            message = f"Price: ₹{price:.2f} | Maximum Long-Term Value Reached\n\n⚠️ Educational alert only. Not financial advice."
+            tags = "chart_with_downwards_trend,moneybag"
     else:
-        # Standard intraday / short_selling format
+        # Standard intraday format
         title = f"CONFLUENCE ALERT: {ticker} ({mode_label})"
 
         lines = [
@@ -234,7 +250,7 @@ async def send_ntfy_alert(
             lines.append(f"• {detail}")
         lines.append("\n⚠️ Educational alert only. Not financial advice.")
         message = "\n".join(lines)
-        tags = "chart_with_upwards_trend,bullseye" if mode != "short_selling" else "chart_with_downwards_trend,bullseye"
+        tags = "chart_with_upwards_trend,bullseye" if signal == "BUY" else "chart_with_downwards_trend,bullseye"
 
     try:
         url = f"https://ntfy.sh/{ntfy_topic.strip()}"
@@ -519,6 +535,7 @@ async def send_discord_alert(
     mode: str,
     price: float,
     details: dict,
+    signal: str,
     webhook_url: Optional[str] = None,
 ) -> bool:
     """Send a formatted confluence alert via Discord Webhook."""
@@ -528,22 +545,29 @@ async def send_discord_alert(
     if not url:
         return False
 
-    mode_labels = {
-        "intraday": "Intraday (Buy Side)",
-        "short_selling": "Short Selling (Sell Side)",
-        "long_term": "Long-Term (Delivery)",
-    }
-    mode_label = mode_labels.get(mode, mode.upper())
+    if mode == "intraday":
+        mode_label = "Intraday (Buy Side)" if signal == "BUY" else "Intraday (Sell Side)"
+    elif mode == "long_term":
+        mode_label = "Long-Term (Delivery)" if signal == "BUY" else "Long-Term (Profit-Booking)"
+    else:
+        mode_label = mode.upper()
 
     if mode == "long_term":
-        title = f"📈 LONG-TERM VALUE ALERT: {ticker}"
-        color = 3447003 # Blue
-        description = f"**Price:** ₹{price:.2f}\n\n**Alignment Breakdown:**\n"
-        for key, detail in details.items():
-            description += f"• {detail}\n"
+        if signal == "BUY":
+            title = f"📈 LONG-TERM VALUE ALERT: {ticker}"
+            color = 3447003 # Blue
+            description = f"**Price:** ₹{price:.2f}\n\n**Alignment Breakdown:**\n"
+            for key, detail in details.items():
+                description += f"• {detail}\n"
+        else:
+            title = f"🏦 PROFIT-TAKING ALERT: {ticker}"
+            color = 15158332 # Red
+            description = f"**Price:** ₹{price:.2f}\n\nMaximum Long-Term Value Reached\n\n**Alignment Breakdown:**\n"
+            for key, detail in details.items():
+                description += f"• {detail}\n"
     else:
         title = f"🎯 CONFLUENCE ALERT: {ticker} ({mode_label})"
-        color = 15158332 if mode == "short_selling" else 3066993 # Red or Green
+        color = 3066993 if signal == "BUY" else 15158332 # Green or Red
         description = f"**Stock:** {ticker}\n**Price:** ₹{price:.2f}\n**Mode:** {mode_label}\n**Confluence:** ALL 4 INDICATORS ALIGNED\n\n**Alignment Breakdown:**\n"
         for key, detail in details.items():
             description += f"• {detail}\n"

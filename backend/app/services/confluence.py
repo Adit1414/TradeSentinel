@@ -22,6 +22,7 @@ class ConfluenceResult:
     mode: str = ""
     checks: dict = None  # Individual indicator pass/fail
     details: dict = None  # Human-readable summary
+    signal: str = "NONE" # "BUY" | "SELL" | "NONE"
 
     def __post_init__(self):
         if self.checks is None:
@@ -32,27 +33,49 @@ class ConfluenceResult:
 
 def check_confluence(indicators: IndicatorResult, mode: str) -> ConfluenceResult:
     """
-    Check if all 4 indicators are perfectly aligned for the given mode.
+    Check if indicators are aligned for the given timeframe.
 
     Args:
         indicators: Calculated indicator values from the indicator engine.
-        mode: "intraday", "short_selling", or "long_term".
+        mode: "intraday" or "long_term".
 
     Returns:
-        ConfluenceResult with alignment status and per-indicator details.
+        ConfluenceResult with alignment status, per-indicator details, and signal.
     """
     if indicators is None:
-        return ConfluenceResult(is_aligned=False, mode=mode)
+        return ConfluenceResult(is_aligned=False, mode=mode, signal="NONE")
 
     if mode == "intraday":
-        return _check_intraday(indicators)
-    elif mode == "short_selling":
-        return _check_short_selling(indicators)
+        buy_res = _check_intraday(indicators)
+        sell_res = _check_short_selling(indicators)
+        
+        if buy_res.is_aligned:
+            buy_res.signal = "BUY"
+            return buy_res
+        elif sell_res.is_aligned:
+            sell_res.signal = "SELL"
+            return sell_res
+        else:
+            buy_res.signal = "NONE"
+            return buy_res
+
     elif mode == "long_term":
-        return _check_long_term(indicators)
+        buy_res = _check_long_term(indicators)
+        sell_res = _check_long_term_sell(indicators)
+        
+        if buy_res.is_aligned:
+            buy_res.signal = "BUY"
+            return buy_res
+        elif sell_res.is_aligned:
+            sell_res.signal = "SELL"
+            return sell_res
+        else:
+            buy_res.signal = "NONE"
+            return buy_res
+
     else:
         logger.error(f"Unknown mode: {mode}")
-        return ConfluenceResult(is_aligned=False, mode=mode)
+        return ConfluenceResult(is_aligned=False, mode=mode, signal="NONE")
 
 
 def _check_intraday(ind: IndicatorResult) -> ConfluenceResult:
@@ -252,3 +275,78 @@ def _check_long_term(ind: IndicatorResult) -> ConfluenceResult:
         checks=checks,
         details=details,
     )
+
+
+def _check_long_term_sell(ind: IndicatorResult) -> ConfluenceResult:
+    """
+    Long-Term (Delivery) "Exit/Profit-Booking" confluence on weekly timeframe.
+
+    Fires a LONG-TERM SELL ALERT when at least 3 of the following 4
+    weekly conditions align (3-of-4 threshold):
+
+    1. Weekly RSI >= 70 (Asset is euphoric/overextended).
+    2. Weekly Upper Bollinger Band Touch (current_price >= weekly_bb_upper * 0.98).
+    3. Weekly MACD Exhaustion (weekly_macd_line < weekly_macd_signal).
+    4. 200-W SMA Overextension (current_price >= weekly_sma_200 * 1.35).
+    """
+    checks = {}
+    details = {}
+
+    # 1. Weekly RSI >= 70
+    rsi_overbought = ind.rsi >= 70
+    checks["weekly_rsi"] = rsi_overbought
+    details["weekly_rsi"] = (
+        f"Weekly RSI {ind.rsi:.1f} — "
+        f"{'✓ Overbought zone (>=70)' if rsi_overbought else f'✗ Not overbought ({ind.rsi:.1f} < 70)'}"
+    )
+
+    # 2. Weekly Upper Bollinger Band Touch
+    if ind.weekly_bb_upper is not None and ind.weekly_bb_upper > 0:
+        bb_touch = ind.price >= ind.weekly_bb_upper * 0.98
+        checks["weekly_bb_upper"] = bb_touch
+        details["weekly_bb_upper"] = (
+            f"Price ₹{ind.price:.2f} | Upper BB ₹{ind.weekly_bb_upper:.2f} — "
+            f"{'✓ Near/above upper band' if bb_touch else '✗ Below upper Bollinger Band'}"
+        )
+    else:
+        checks["weekly_bb_upper"] = False
+        details["weekly_bb_upper"] = "Bollinger Bands not available"
+
+    # 3. Weekly MACD Exhaustion
+    macd_exhausted = ind.macd_line < ind.macd_signal
+    checks["weekly_macd"] = macd_exhausted
+    details["weekly_macd"] = (
+        f"Weekly MACD {ind.macd_line:.4f} / Signal {ind.macd_signal:.4f} — "
+        f"{'✓ Momentum rolling over (Bearish cross)' if macd_exhausted else '✗ Bullish momentum intact'}"
+    )
+
+    # 4. 200-W SMA Overextension
+    if ind.weekly_sma_200 is not None and ind.weekly_sma_200 > 0:
+        sma_overextended = ind.price >= ind.weekly_sma_200 * 1.35
+        checks["weekly_sma_200"] = sma_overextended
+        pct_diff = ((ind.price - ind.weekly_sma_200) / ind.weekly_sma_200) * 100
+        details["weekly_sma_200"] = (
+            f"Price ₹{ind.price:.2f} | 200-W SMA ₹{ind.weekly_sma_200:.2f} "
+            f"(+{pct_diff:.1f}%) — "
+            f"{'✓ Overextended (>35%)' if sma_overextended else '✗ Not overextended (<35%)'}"
+        )
+    else:
+        checks["weekly_sma_200"] = False
+        details["weekly_sma_200"] = "200-W SMA not available"
+
+    aligned_count = sum(checks.values())
+    is_aligned = aligned_count >= 3
+
+    if is_aligned:
+        logger.info(
+            f"🏦 LONG-TERM PROFIT-TAKING ALERT! Price: ₹{ind.price:.2f} "
+            f"| {aligned_count}/4 weekly sell conditions met"
+        )
+
+    return ConfluenceResult(
+        is_aligned=is_aligned,
+        mode="long_term_sell",
+        checks=checks,
+        details=details,
+    )
+

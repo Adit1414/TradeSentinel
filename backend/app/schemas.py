@@ -9,13 +9,13 @@ from pydantic import BaseModel, Field
 class WatchlistItemCreate(BaseModel):
     ticker: str = Field(..., min_length=1, max_length=20, examples=["RELIANCE"])
     display_name: str | None = Field(None, max_length=100)
-    mode: str = Field(..., pattern=r"^(intraday|short_selling|long_term)$")
+    mode: str = Field(..., pattern=r"^(intraday|long_term)$")
 
 
 class WatchlistItemUpdate(BaseModel):
     ticker: str | None = Field(None, max_length=20)
     display_name: str | None = Field(None, max_length=100)
-    mode: str | None = Field(None, pattern=r"^(intraday|short_selling|long_term)$")
+    mode: str | None = Field(None, pattern=r"^(intraday|long_term)$")
     is_active: bool | None = None
 
 
@@ -35,7 +35,7 @@ class WatchlistItemResponse(BaseModel):
 
 class PositionCreate(BaseModel):
     ticker: str = Field(..., min_length=1, max_length=20)
-    trade_type: str = Field(..., pattern=r"^(intraday|short_selling|long_term)$")
+    trade_type: str = Field(..., pattern=r"^(intraday|long_term)$")
     direction: str = Field(..., pattern=r"^(BUY|SELL)$")
     quantity: int = Field(..., gt=0)
     entry_price: float = Field(..., gt=0)
@@ -68,7 +68,7 @@ class PositionResponse(BaseModel):
 
 class BreakEvenRequest(BaseModel):
     """Request schema for the break-even / target-price calculator."""
-    trade_type: str = Field(..., pattern=r"^(intraday|short_selling|long_term)$")
+    trade_type: str = Field(..., pattern=r"^(intraday|long_term)$")
     direction: str = Field(..., pattern=r"^(BUY|SELL)$")
     quantity: int = Field(..., gt=0)
     entry_price: float = Field(..., gt=0)
@@ -161,7 +161,7 @@ class IndicatorStatus(BaseModel):
 
 # ── Paper Trades ───────────────────────────────────────────────────────────────
 
-VALID_DIRECTIONS = {"INTRADAY_BUY", "SHORT_SELL", "LONG_TERM"}
+VALID_DIRECTIONS = {"INTRADAY_BUY", "INTRADAY_SHORT", "LONG_TERM_BUY", "LONG_TERM_SELL"}
 
 
 class SnapshotResponse(BaseModel):
@@ -188,7 +188,7 @@ class OpenPaperTradeRequest(BaseModel):
     """Request body for POST /api/paper-trade/open."""
     ticker: str = Field(..., min_length=1, max_length=20)
     trade_direction: str = Field(
-        ..., description="INTRADAY_BUY | SHORT_SELL | LONG_TERM"
+        ..., description="INTRADAY_BUY | INTRADAY_SHORT | LONG_TERM_BUY | LONG_TERM_SELL"
     )
     quantity: int = Field(..., gt=0)
     entry_price: float = Field(..., gt=0)
@@ -217,7 +217,7 @@ class EditPaperTradeRequest(BaseModel):
     entry_price: float = Field(..., gt=0)
     quantity: int = Field(..., gt=0)
     trade_direction: str = Field(
-        ..., description="INTRADAY_BUY | SHORT_SELL | LONG_TERM"
+        ..., description="INTRADAY_BUY | INTRADAY_SHORT | LONG_TERM_BUY | LONG_TERM_SELL"
     )
     user_defined_stop_loss: float | None = None
 

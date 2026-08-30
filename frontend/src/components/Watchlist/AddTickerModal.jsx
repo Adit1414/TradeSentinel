@@ -6,7 +6,6 @@ import { watchlistApi } from '../../api/client';
 
 const MODE_LABELS = {
   intraday: 'Intraday',
-  short_selling: 'Short Selling',
   long_term: 'Long-Term',
 };
 

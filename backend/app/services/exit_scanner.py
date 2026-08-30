@@ -37,27 +37,25 @@ logger = logging.getLogger(__name__)
 
 def _trade_mode(trade: PaperTrade) -> str:
     """Map trade_direction to the indicator-calculation mode string."""
-    if trade.trade_direction == "INTRADAY_BUY":
+    if trade.trade_direction in ("INTRADAY_BUY", "INTRADAY_SHORT"):
         return "intraday"
-    elif trade.trade_direction == "SHORT_SELL":
-        return "short_selling"
     else:
         return "long_term"
 
 
 def _calc_net_pnl(trade: PaperTrade, current_price: float) -> float:
     """Calculate current unrealised net PnL (after estimated fees) for an open trade."""
-    is_delivery = trade.trade_direction == "LONG_TERM"
+    is_delivery = trade.trade_direction in ("LONG_TERM_BUY", "LONG_TERM_SELL")
     calc_fn = calc_charges_delivery if is_delivery else calc_charges_intraday
 
     entry_turnover = trade.entry_price * trade.quantity
     exit_turnover = current_price * trade.quantity
 
-    if trade.trade_direction in ("INTRADAY_BUY", "LONG_TERM"):
+    if trade.trade_direction in ("INTRADAY_BUY", "LONG_TERM_BUY", "LONG_TERM_SELL"):
         pnl_gross = (current_price - trade.entry_price) * trade.quantity
         entry_fees = calc_fn(entry_turnover, "BUY")["total"]
         exit_fees = calc_fn(exit_turnover, "SELL")["total"]
-    else:  # SHORT_SELL
+    else:  # INTRADAY_SHORT
         pnl_gross = (trade.entry_price - current_price) * trade.quantity
         entry_fees = calc_fn(entry_turnover, "SELL")["total"]
         exit_fees = calc_fn(exit_turnover, "BUY")["total"]
@@ -168,7 +166,7 @@ async def _evaluate_long_exit(
     settings_map: dict,
 ) -> None:
     """
-    Evaluate exit conditions for a LONG trade (INTRADAY_BUY or LONG_TERM).
+    Evaluate exit conditions for a LONG trade (INTRADAY_BUY, LONG_TERM_BUY, LONG_TERM_SELL).
 
     Stop-Loss:
         - VWAP Breakdown (intraday only): close < vwap
@@ -280,7 +278,7 @@ async def _evaluate_short_exit(
     settings_map: dict,
 ) -> None:
     """
-    Evaluate exit conditions for a SHORT trade (SHORT_SELL).
+    Evaluate exit conditions for a SHORT trade (INTRADAY_SHORT).
 
     Stop-Loss:
         - VWAP Breakout: close > vwap
@@ -450,7 +448,7 @@ async def _scan_single_trade(trade: PaperTrade, settings_map: dict) -> None:
         if live_trade is None or live_trade.status != "OPEN":
             return  # Race-condition guard: trade was just closed
 
-        if live_trade.trade_direction in ("INTRADAY_BUY", "LONG_TERM"):
+        if live_trade.trade_direction in ("INTRADAY_BUY", "LONG_TERM_BUY", "LONG_TERM_SELL"):
             await _evaluate_long_exit(live_trade, ind, session, settings_map)
         else:
             await _evaluate_short_exit(live_trade, ind, session, settings_map)

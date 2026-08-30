@@ -66,7 +66,7 @@ def _is_in_cooldown(ticker: str, mode: str) -> bool:
     last_alert = _alert_cooldowns[key]
     now = datetime.now(timezone.utc)
 
-    if mode in ("intraday", "short_selling"):
+    if mode == "intraday":
         cooldown = timedelta(minutes=settings.alert_cooldown_intraday_minutes)
     else:
         cooldown = timedelta(hours=settings.alert_cooldown_longterm_hours)
@@ -152,7 +152,7 @@ async def _check_single_stock(
 
         # Determine alert type
         alert_type = (
-            "confluence_bearish" if mode == "short_selling" else "confluence_bullish"
+            "confluence_bearish" if result.signal == "SELL" else "confluence_bullish"
         )
 
         # Fetch settings from DB to get custom bot tokens/topics if updated in UI
@@ -179,6 +179,7 @@ async def _check_single_stock(
             mode=mode,
             price=indicators.price,
             details=result.details,
+            signal=result.signal,
             bot_token=tg_token,
             chat_id=tg_chat,
         )
@@ -189,6 +190,7 @@ async def _check_single_stock(
             mode=mode,
             price=indicators.price,
             details=result.details,
+            signal=result.signal,
             topic=ntfy_topic,
         )
 
@@ -202,8 +204,9 @@ async def _check_single_stock(
         discord_sent = await send_discord_alert(
             ticker=item.ticker,
             mode=item.mode,
-            price=price,
-            details=details,
+            price=indicators.price,
+            details=result.details,
+            signal=result.signal,
             webhook_url=discord_webhook_url,
         )
         if discord_sent:
@@ -259,11 +262,6 @@ async def _check_single_stock(
 async def scan_intraday():
     """Scan intraday watchlist stocks (5-minute timeframe)."""
     await _scan_mode("intraday", interval="5m", period="5d")
-
-
-async def scan_short_selling():
-    """Scan short selling watchlist stocks (5-minute timeframe)."""
-    await _scan_mode("short_selling", interval="5m", period="5d")
 
 
 async def scan_long_term():
@@ -350,16 +348,6 @@ def create_scheduler() -> AsyncIOScheduler:
         seconds=settings.scan_interval_intraday_seconds,
         id="scan_intraday",
         name="Intraday Scanner",
-        replace_existing=True,
-    )
-
-    # Short selling scan — same interval as intraday
-    scheduler.add_job(
-        scan_short_selling,
-        "interval",
-        seconds=settings.scan_interval_intraday_seconds,
-        id="scan_short_selling",
-        name="Short Selling Scanner",
         replace_existing=True,
     )
 

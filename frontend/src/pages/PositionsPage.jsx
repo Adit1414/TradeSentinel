@@ -8,7 +8,6 @@ import './Pages.css';
 
 const TRADE_TYPES = [
   { value: 'intraday', label: 'Intraday', icon: TrendingUp, color: 'green' },
-  { value: 'short_selling', label: 'Short Selling', icon: TrendingDown, color: 'red' },
   { value: 'long_term', label: 'Long-Term', icon: Clock, color: 'blue' },
 ];
 
@@ -95,7 +94,7 @@ export default function PositionsPage() {
                       <span className="mono" style={{ fontWeight: 600 }}>{pos.ticker}</span>
                     </td>
                     <td>
-                      <span className={`badge badge-${pos.trade_type === 'intraday' ? 'green' : pos.trade_type === 'short_selling' ? 'red' : 'blue'}`}>
+                      <span className={`badge badge-${pos.trade_type === 'intraday' ? 'green' : 'blue'}`}>
                         {pos.trade_type.replace('_', ' ')}
                       </span>
                     </td>
@@ -163,7 +162,7 @@ export default function PositionsPage() {
                   <tr key={pos.id}>
                     <td className="mono" style={{ fontWeight: 600 }}>{pos.ticker}</td>
                     <td>
-                      <span className={`badge badge-${pos.trade_type === 'intraday' ? 'green' : pos.trade_type === 'short_selling' ? 'red' : 'blue'}`}>
+                      <span className={`badge badge-${pos.trade_type === 'intraday' ? 'green' : 'blue'}`}>
                         {pos.trade_type.replace('_', ' ')}
                       </span>
                     </td>
@@ -249,7 +248,6 @@ function AddPositionModal({ onClose }) {
               <select className="select" value={form.trade_type}
                 onChange={(e) => setForm({ ...form, trade_type: e.target.value })}>
                 <option value="intraday">Intraday</option>
-                <option value="short_selling">Short Selling</option>
                 <option value="long_term">Long-Term</option>
               </select>
             </div>
@@ -349,7 +347,6 @@ function CalculatorModal({ onClose }) {
               <select className="select" value={form.trade_type}
                 onChange={(e) => setForm({ ...form, trade_type: e.target.value })}>
                 <option value="intraday">Intraday</option>
-                <option value="short_selling">Short Selling</option>
                 <option value="long_term">Long-Term (CNC)</option>
               </select>
             </div>

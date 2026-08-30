@@ -8,7 +8,6 @@ import './Pages.css';
 const MODE_FILTERS = [
   { value: '', label: 'All Modes' },
   { value: 'intraday', label: 'Intraday' },
-  { value: 'short_selling', label: 'Short Selling' },
   { value: 'long_term', label: 'Long-Term' },
 ];
 
@@ -98,7 +97,6 @@ export default function AlertsPage() {
                     {alert.ticker}
                   </span>
                   <span className={`badge ${
-                    alert.mode === 'short_selling' ? 'badge-red' :
                     alert.mode === 'long_term' ? 'badge-blue' : 'badge-green'
                   }`}>
                     {alert.mode?.replace('_', ' ')}
