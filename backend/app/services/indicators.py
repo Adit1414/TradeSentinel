@@ -82,8 +82,8 @@ def calculate_indicators(
     Returns:
         IndicatorResult with latest values, or None if insufficient data.
     """
-    # Long-term needs 200+ candles for the weekly SMA-200
-    min_candles = 200 if mode == "long_term" else 30
+    # Long-term minimum candles reduced to 50 to allow 1y/2y backtesting (SMA-200 will be NaN)
+    min_candles = 50 if mode == "long_term" else 30
     if df is None or df.empty or len(df) < min_candles:
         logger.warning(
             f"Insufficient data for {mode} indicator calculation "
