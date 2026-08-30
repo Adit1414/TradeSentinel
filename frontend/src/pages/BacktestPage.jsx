@@ -105,9 +105,9 @@ export default function BacktestPage() {
             <div className="form-group">
               <label className="form-label">Exit Strategy</label>
               <select className="input" value={exitStrategy} onChange={(e) => setExitStrategy(e.target.value)}>
-                <option value="1">1. Pure Oscillators (RSI > 70 or BB Upper)</option>
+                <option value="1">1. Pure Oscillators (RSI &gt; 70 or BB Upper)</option>
                 <option value="2">2. Structural Breakdown (Trailing Stop or 200 SMA Loss)</option>
-                <option value="3">3. Macro Momentum Shift (RSI > 70 + MACD Bearish)</option>
+                <option value="3">3. Macro Momentum Shift (RSI &gt; 70 + MACD Bearish)</option>
               </select>
             </div>
 
