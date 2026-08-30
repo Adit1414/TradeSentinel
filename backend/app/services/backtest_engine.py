@@ -10,7 +10,7 @@ from app.services.indicators import calculate_indicators
 logger = logging.getLogger(__name__)
 
 class TradeSentinelStrategy(Strategy):
-    buy_threshold = 3
+    entry_strategy = 1
     exit_strategy = 2
 
     def init(self):
@@ -26,11 +26,21 @@ class TradeSentinelStrategy(Strategy):
         weekly_bb_upper = self.data.weekly_bb_upper[-1] if 'weekly_bb_upper' in self.data.df.columns else np.nan
         macd_line = self.data.macd_line[-1] if 'macd_line' in self.data.df.columns else np.nan
         macd_signal = self.data.macd_signal[-1] if 'macd_signal' in self.data.df.columns else np.nan
+        weekly_ema_10 = self.data.weekly_ema_10[-1] if 'weekly_ema_10' in self.data.df.columns else np.nan
+        weekly_ema_40 = self.data.weekly_ema_40[-1] if 'weekly_ema_40' in self.data.df.columns else np.nan
 
         if not self.position:
-            if buy_score >= self.buy_threshold:
-                self.buy()
-                self.peak_price_since_entry = current_close
+            if self.entry_strategy == 1:
+                # Option 1: Deep Value (3-of-4 Indicators)
+                if buy_score >= 3:
+                    self.buy()
+                    self.peak_price_since_entry = current_close
+            elif self.entry_strategy == 2:
+                # Option 2: Macro Trend Follower (10W/40W EMA Cross)
+                if not pd.isna(weekly_ema_10) and not pd.isna(weekly_ema_40):
+                    if weekly_ema_10 > weekly_ema_40:
+                        self.buy()
+                        self.peak_price_since_entry = current_close
         else:
             # We are in a position, update peak price
             if current_close > self.peak_price_since_entry:
@@ -57,6 +67,12 @@ class TradeSentinelStrategy(Strategy):
                 if not pd.isna(weekly_rsi) and not pd.isna(macd_line) and not pd.isna(macd_signal):
                     if weekly_rsi >= 70 and macd_line < macd_signal:
                         exit_triggered = True
+                        
+            elif self.exit_strategy == 4:
+                # Option 4: Macro Trend Breakdown
+                if not pd.isna(weekly_ema_10) and not pd.isna(weekly_ema_40):
+                    if weekly_ema_10 < weekly_ema_40:
+                        exit_triggered = True
             
             if exit_triggered:
                 self.position.close()
@@ -67,8 +83,8 @@ def run_backtest(
     ticker: str, 
     period: str, 
     initial_capital: float, 
-    buy_threshold: int, 
     sell_threshold: int,
+    entry_strategy: int = 1,
     exit_strategy: int = 2
 ) -> Dict[str, Any]:
     """
@@ -114,6 +130,18 @@ def run_backtest(
         df_bt["weekly_ema_50"] = ema_50.reindex(close.index)
     else:
         df_bt["weekly_ema_50"] = np.nan
+        
+    ema_10 = series.get("weekly_ema_10")
+    if ema_10 is not None:
+        df_bt["weekly_ema_10"] = ema_10.reindex(close.index)
+    else:
+        df_bt["weekly_ema_10"] = np.nan
+        
+    ema_40 = series.get("weekly_ema_40")
+    if ema_40 is not None:
+        df_bt["weekly_ema_40"] = ema_40.reindex(close.index)
+    else:
+        df_bt["weekly_ema_40"] = np.nan
 
     rsi = series.get("rsi")
     if rsi is not None:
@@ -166,7 +194,7 @@ def run_backtest(
         trade_on_close=True
     )
     
-    stats = bt.run(buy_threshold=buy_threshold, exit_strategy=exit_strategy)
+    stats = bt.run(entry_strategy=entry_strategy, exit_strategy=exit_strategy)
     trades = stats["_trades"]
     
     years = (df.index[-1] - df.index[0]).days / 365.25

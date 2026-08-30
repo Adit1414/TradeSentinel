@@ -48,6 +48,8 @@ class IndicatorResult:
     # 200-Week Simple Moving Average
     weekly_sma_200: Optional[float] = None
     weekly_ema_50: Optional[float] = None
+    weekly_ema_10: Optional[float] = None
+    weekly_ema_40: Optional[float] = None
     weekly_52w_high: Optional[float] = None
 
     # Weekly Bollinger Bands (20, 2)
@@ -124,7 +126,22 @@ def calculate_indicators(
             if ema50_series is not None and not ema50_series.empty:
                 latest_ema50 = ema50_series.iloc[-1]
                 result.weekly_ema_50 = float(latest_ema50) if not pd.isna(latest_ema50) else None
-                result.series["weekly_ema_50"] = ema50_series.dropna()
+                if include_series:
+                    result.series["weekly_ema_50"] = ema50_series.dropna()
+                    
+            ema10_series = ta.ema(close=df[close_col], length=10)
+            if ema10_series is not None and not ema10_series.empty:
+                latest_ema10 = ema10_series.iloc[-1]
+                result.weekly_ema_10 = float(latest_ema10) if not pd.isna(latest_ema10) else None
+                if include_series:
+                    result.series["weekly_ema_10"] = ema10_series.dropna()
+                    
+            ema40_series = ta.ema(close=df[close_col], length=40)
+            if ema40_series is not None and not ema40_series.empty:
+                latest_ema40 = ema40_series.iloc[-1]
+                result.weekly_ema_40 = float(latest_ema40) if not pd.isna(latest_ema40) else None
+                if include_series:
+                    result.series["weekly_ema_40"] = ema40_series.dropna()
 
             # 52-Week High
             high52_series = df[close_col].rolling(window=52, min_periods=1).max()
@@ -318,7 +335,7 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
                     for idx, v in overlay_series.items()
                 ]
         else:  # long_term — weekly SMA-200 and BB bands as overlays
-            for overlay_key in ("weekly_sma_200", "weekly_bb_lower", "weekly_bb_mid", "weekly_bb_upper"):
+            for overlay_key in ("weekly_sma_200", "weekly_ema_10", "weekly_ema_40", "weekly_bb_lower", "weekly_bb_mid", "weekly_bb_upper"):
                 overlay_series = result.series.get(overlay_key)
                 if overlay_series is not None:
                     indicators[overlay_key] = [
@@ -373,6 +390,8 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
             "macd_crossover": result.macd_crossover if result else "none",
             # Weekly long-term indicators
             "weekly_sma_200": result.weekly_sma_200 if result else None,
+            "weekly_ema_10": result.weekly_ema_10 if result else None,
+            "weekly_ema_40": result.weekly_ema_40 if result else None,
             "weekly_bb_lower": result.weekly_bb_lower if result else None,
             "weekly_bb_mid": result.weekly_bb_mid if result else None,
             "weekly_bb_upper": result.weekly_bb_upper if result else None,

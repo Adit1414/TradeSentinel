@@ -8,7 +8,7 @@ export default function BacktestPage() {
   const [ticker, setTicker] = useState('RELIANCE.NS');
   const [period, setPeriod] = useState('10y');
   const [capital, setCapital] = useState(100000);
-  const [buyThreshold, setBuyThreshold] = useState(3);
+  const [entryStrategy, setEntryStrategy] = useState(1);
   const [exitStrategy, setExitStrategy] = useState(2);
 
   const mutation = useMutation({
@@ -29,7 +29,7 @@ export default function BacktestPage() {
       ticker: cleanTicker,
       period,
       initial_capital: parseFloat(capital),
-      buy_threshold: parseInt(buyThreshold),
+      entry_strategy: parseInt(entryStrategy),
       exit_strategy: parseInt(exitStrategy),
     });
   };
@@ -90,16 +90,11 @@ export default function BacktestPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Buy Threshold (1-4)</label>
-              <select className="input" value={buyThreshold} onChange={(e) => setBuyThreshold(e.target.value)}>
-                <option value="1">1 Indicator</option>
-                <option value="2">2 Indicators</option>
-                <option value="3">3 Indicators</option>
-                <option value="4">4 Indicators (Strict)</option>
+              <label className="form-label">Entry Strategy</label>
+              <select className="input" value={entryStrategy} onChange={(e) => setEntryStrategy(e.target.value)}>
+                <option value="1">1. Deep Value (3-of-4 Indicators)</option>
+                <option value="2">2. Macro Trend Follower (10W/40W EMA Cross)</option>
               </select>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                How many indicators must align to trigger a buy.
-              </span>
             </div>
 
             <div className="form-group">
@@ -108,6 +103,7 @@ export default function BacktestPage() {
                 <option value="1">1. Pure Oscillators (RSI &gt; 70 or BB Upper)</option>
                 <option value="2">2. Structural Breakdown (Trailing Stop or 200 SMA Loss)</option>
                 <option value="3">3. Macro Momentum Shift (RSI &gt; 70 + MACD Bearish)</option>
+                <option value="4">4. Macro Trend Breakdown (10W &lt; 40W EMA)</option>
               </select>
             </div>
 
@@ -165,7 +161,20 @@ export default function BacktestPage() {
                     {stats.return_pct > 0 ? '+' : ''}{stats.return_pct}%
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 4 }}>
-                    CAGR: {stats.strategy_cagr_pct}% vs {stats.buy_hold_cagr_pct}% (B&H)
+                    vs {stats.buy_hold_return_pct}% Buy & Hold
+                  </div>
+                </div>
+
+                <div className="glass-card" style={{ padding: 'var(--space-lg)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: 'var(--text-muted)' }}>
+                    <Percent size={16} /> 
+                    <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Strategy CAGR</span>
+                  </div>
+                  <div style={{ fontSize: '32px', fontWeight: 700, color: stats.strategy_cagr_pct > 0 ? 'var(--green)' : 'var(--red)' }}>
+                    {stats.strategy_cagr_pct > 0 ? '+' : ''}{stats.strategy_cagr_pct}%
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 4 }}>
+                    vs {stats.buy_hold_cagr_pct}% Buy & Hold
                   </div>
                 </div>
 

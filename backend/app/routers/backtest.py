@@ -10,7 +10,7 @@ class BacktestRequest(BaseModel):
     ticker: str
     period: str = "5y"
     initial_capital: float = 100000.0
-    buy_threshold: int = 3
+    entry_strategy: int = 1
     sell_threshold: int = 3
     exit_strategy: int = 2
 
@@ -22,7 +22,7 @@ def execute_backtest(request: BacktestRequest) -> Dict[str, Any]:
             ticker=request.ticker,
             period=request.period,
             initial_capital=request.initial_capital,
-            buy_threshold=request.buy_threshold,
+            entry_strategy=request.entry_strategy,
             sell_threshold=request.sell_threshold,
             exit_strategy=request.exit_strategy
         )
