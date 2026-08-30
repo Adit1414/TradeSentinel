@@ -198,8 +198,6 @@ export default function BacktestPage() {
             </div>
           )}
 
-          )}
-
           {/* Aggregate Calculation */}
           {(() => {
             if (!batchData || batchData.length === 0) return null;
