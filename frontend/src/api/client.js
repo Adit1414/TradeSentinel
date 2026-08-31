@@ -127,6 +127,7 @@ export const paperTradeApi = {
 export const backtestApi = {
   run: (data) => api.post('/backtest/run', data),
   batchRun: (data) => api.post('/backtest/batch', data),
+  intradayRun: (data) => api.post('/backtest/intraday', data),
 };
 
 export default api;

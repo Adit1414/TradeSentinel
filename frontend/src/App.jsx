@@ -9,6 +9,7 @@ import PositionsPage from './pages/PositionsPage';
 import AlertsPage from './pages/AlertsPage';
 import JournalPage from './pages/JournalPage';
 import BacktestPage from './pages/BacktestPage';
+import IntradayBacktestPage from './pages/IntradayBacktestPage';
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
                   <Route path="/alerts" element={<AlertsPage />} />
                   <Route path="/journal" element={<JournalPage />} />
                   <Route path="/backtest" element={<BacktestPage />} />
+                  <Route path="/backtest/intraday" element={<IntradayBacktestPage />} />
                 </Routes>
               </Layout>
             </ProtectedRoute>

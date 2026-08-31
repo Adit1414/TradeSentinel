@@ -340,3 +340,268 @@ def run_backtest(
         "stats": stats_dict,
         "trades": trades_list
     }
+
+class TradeSentinelIntradayStrategy(Strategy):
+    direction = "long"
+    entry_strategy = 1
+    exit_strategy = 1
+
+    def init(self):
+        self.entry_price = 0.0
+
+    def next(self):
+        # Calculate time in IST assuming data timestamp is UTC (if it is, add 5:30. But yfinance usually returns local time if timezone is set, or UTC. fetch_ohlcv ensures IST). 
+        # Actually, df.index is tz-aware in pandas from yfinance. We can use .hour and .minute if it's in IST, or we convert.
+        # Let's assume the timestamp is correct, or just use hour and minute directly if tz-aware.
+        idx = self.data.df.index[-1]
+        if idx.tz is None:
+            # Assume UTC, add 5h30m
+            current_time_ist = idx + pd.Timedelta(hours=5, minutes=30)
+        else:
+            # Convert to Asia/Kolkata
+            current_time_ist = idx.tz_convert('Asia/Kolkata')
+            
+        current_hour = current_time_ist.hour
+        current_minute = current_time_ist.minute
+        current_time_hm = current_hour * 100 + current_minute
+
+        close = self.data.Close[-1]
+        high = self.data.High[-1]
+        low = self.data.Low[-1]
+        vwap = self.data.vwap[-1] if 'vwap' in self.data.df.columns else np.nan
+        ema_9 = self.data.ema_9[-1] if 'ema_9' in self.data.df.columns else np.nan
+        ema_21 = self.data.ema_21[-1] if 'ema_21' in self.data.df.columns else np.nan
+        ema_9_prev = self.data.ema_9[-2] if 'ema_9' in self.data.df.columns and len(self.data.ema_9) > 1 else np.nan
+        ema_21_prev = self.data.ema_21[-2] if 'ema_21' in self.data.df.columns and len(self.data.ema_21) > 1 else np.nan
+        st = self.data.supertrend_direction[-1] if 'supertrend_direction' in self.data.df.columns else 0
+        st_prev = self.data.supertrend_direction[-2] if 'supertrend_direction' in self.data.df.columns and len(self.data.supertrend_direction) > 1 else 0
+        rsi = self.data.rsi[-1] if 'rsi' in self.data.df.columns else np.nan
+        macd_line = self.data.macd_line[-1] if 'macd_line' in self.data.df.columns else np.nan
+        macd_signal = self.data.macd_signal[-1] if 'macd_signal' in self.data.df.columns else np.nan
+        
+        # 15:15 Auto Square Off
+        if current_time_hm >= 1515 and self.position:
+            self.position.close()
+            self.entry_price = 0.0
+            return
+            
+        if not self.position:
+            # Only allow new entries between 09:15 and 15:00
+            if current_time_hm >= 915 and current_time_hm <= 1500:
+                enter_trade = False
+                
+                if self.entry_strategy == 1:
+                    if self.direction == "long":
+                        if close > vwap and st == 1 and rsi > 60 and macd_line > macd_signal:
+                            enter_trade = True
+                    else:
+                        if close < vwap and st == -1 and rsi < 40 and macd_line < macd_signal:
+                            enter_trade = True
+                
+                elif self.entry_strategy == 2:
+                    vwap_prev = self.data.vwap[-2] if len(self.data.vwap) > 1 else np.nan
+                    close_prev = self.data.Close[-2] if len(self.data.Close) > 1 else np.nan
+                    if self.direction == "long":
+                        if close_prev < vwap_prev and close > vwap and rsi > 50:
+                            enter_trade = True
+                    else:
+                        if close_prev > vwap_prev and close < vwap and rsi < 50:
+                            enter_trade = True
+                            
+                elif self.entry_strategy == 3:
+                    if self.direction == "long":
+                        if ema_9_prev <= ema_21_prev and ema_9 > ema_21:
+                            enter_trade = True
+                    else:
+                        if ema_9_prev >= ema_21_prev and ema_9 < ema_21:
+                            enter_trade = True
+                            
+                elif self.entry_strategy == 4:
+                    if self.direction == "long":
+                        if st_prev == -1 and st == 1:
+                            enter_trade = True
+                    else:
+                        if st_prev == 1 and st == -1:
+                            enter_trade = True
+
+                if enter_trade:
+                    if self.direction == "long":
+                        self.buy()
+                    else:
+                        self.sell()
+                    self.entry_price = close
+        else:
+            exit_triggered = False
+            
+            if self.exit_strategy == 1:
+                if self.direction == "long":
+                    if st == -1 or close < vwap:
+                        exit_triggered = True
+                else:
+                    if st == 1 or close > vwap:
+                        exit_triggered = True
+                        
+            elif self.exit_strategy == 2:
+                if self.entry_price > 0:
+                    if self.direction == "long":
+                        sl = self.entry_price * 0.995
+                        tp = self.entry_price * 1.01
+                        if low <= sl or high >= tp:
+                            exit_triggered = True
+                    else:
+                        sl = self.entry_price * 1.005
+                        tp = self.entry_price * 0.99
+                        if high >= sl or low <= tp:
+                            exit_triggered = True
+                            
+            elif self.exit_strategy == 3:
+                if self.direction == "long":
+                    if st == -1:
+                        exit_triggered = True
+                else:
+                    if st == 1:
+                        exit_triggered = True
+                        
+            elif self.exit_strategy == 4:
+                if self.direction == "long":
+                    if close < vwap:
+                        exit_triggered = True
+                else:
+                    if close > vwap:
+                        exit_triggered = True
+                        
+            elif self.exit_strategy == 5:
+                pass
+                
+            if exit_triggered:
+                self.position.close()
+                self.entry_price = 0.0
+
+def run_intraday_backtest(
+    ticker: str, 
+    direction: str = "long",
+    initial_capital: float = 100000.0,
+    entry_strategy: int = 1,
+    exit_strategy: int = 1
+) -> Dict[str, Any]:
+    df = fetch_ohlcv(ticker, interval="5m", period="60d", use_cache=False)
+    if df.empty:
+        raise ValueError(f"No data available for {ticker}")
+
+    ind = calculate_indicators(df, mode="intraday", include_series=True)
+    if ind is None or not ind.series:
+        raise ValueError(f"Insufficient data to calculate indicators for {ticker}")
+
+    series = ind.series
+    close_col = "adj close" if "adj close" in df.columns else "close"
+    df_bt = df.rename(columns={
+        "open": "Open",
+        "high": "High",
+        "low": "Low",
+        close_col: "Close",
+        "volume": "Volume"
+    }).copy()
+    
+    close = df_bt["Close"]
+    
+    for key in ["vwap", "ema_9", "ema_21", "supertrend_direction", "rsi", "macd_line", "macd_signal"]:
+        val = series.get(key)
+        if val is not None:
+            df_bt[key] = val.reindex(close.index)
+        else:
+            df_bt[key] = np.nan
+
+    bt = Backtest(
+        df_bt, 
+        TradeSentinelIntradayStrategy, 
+        cash=initial_capital, 
+        commission=0.0003,
+        exclusive_orders=True,
+        trade_on_close=True
+    )
+    
+    stats = bt.run(
+        direction=direction, 
+        entry_strategy=entry_strategy, 
+        exit_strategy=exit_strategy
+    )
+    
+    trades = stats["_trades"]
+    
+    days = (df.index[-1] - df.index[0]).days
+    years = days / 365.25 if days > 0 else 0
+    strategy_return = stats.get("Return [%]", 0)
+    bnh_return = stats.get("Buy & Hold Return [%]", 0)
+    
+    strat_cagr = ((1 + strategy_return / 100) ** (1 / years) - 1) * 100 if years > 0 else 0
+    bnh_cagr = ((1 + bnh_return / 100) ** (1 / years) - 1) * 100 if years > 0 else 0
+    exposure = stats.get("Exposure Time [%]", 0)
+    
+    total_profit_earned = 0.0
+    total_loss_incurred = 0.0
+    
+    if not trades.empty:
+        total_profit_earned = trades[trades['PnL'] > 0]['PnL'].sum()
+        total_loss_incurred = trades[trades['PnL'] < 0]['PnL'].sum()
+
+    strategy_instance = stats.get("_strategy")
+    if strategy_instance and hasattr(strategy_instance, "trades"):
+        for t in strategy_instance.trades:
+            if t.pl > 0:
+                total_profit_earned += t.pl
+            elif t.pl < 0:
+                total_loss_incurred += t.pl
+    
+    stats_dict = {
+        "start": str(stats.get("Start", "")),
+        "end": str(stats.get("End", "")),
+        "duration": str(stats.get("Duration", "")),
+        "return_pct": round(strategy_return, 2),
+        "buy_hold_return_pct": round(bnh_return, 2),
+        "strategy_cagr_pct": round(strat_cagr, 2),
+        "buy_hold_cagr_pct": round(bnh_cagr, 2),
+        "cash_drag_pct": round(100 - exposure, 2),
+        "max_drawdown_pct": round(stats.get("Max. Drawdown [%]", 0), 2),
+        "win_rate_pct": round(stats.get("Win Rate [%]", 0), 2),
+        "total_trades": int(stats.get("# Trades", 0)),
+        "expectancy_pct": round(stats.get("Expectancy [%]", 0) if not pd.isna(stats.get("Expectancy [%]", 0)) else 0, 2),
+        "profit_factor": round(stats.get("Profit Factor", 0) if not pd.isna(stats.get("Profit Factor", 0)) else 0, 2),
+        "sharpe_ratio": round(stats.get("Sharpe Ratio", 0) if not pd.isna(stats.get("Sharpe Ratio", 0)) else 0, 2),
+        "total_profit_earned": round(float(total_profit_earned), 2),
+        "total_loss_incurred": round(float(total_loss_incurred), 2),
+    }
+
+    trades_list = []
+    if not trades.empty:
+        for idx, row in trades.iterrows():
+            trades_list.append({
+                "size": int(row.get("Size", 0)),
+                "entry_price": float(row.get("EntryPrice", 0)),
+                "exit_price": float(row.get("ExitPrice", 0)),
+                "entry_time": str(row.get("EntryTime", "")),
+                "exit_time": str(row.get("ExitTime", "")),
+                "pnl": float(row.get("PnL", 0)),
+                "return_pct": float(row.get("ReturnPct", 0) * 100),
+                "duration": str(row.get("Duration", ""))
+            })
+
+    if strategy_instance and hasattr(strategy_instance, "trades"):
+        for t in strategy_instance.trades:
+            trades_list.append({
+                "size": int(t.size),
+                "entry_price": float(t.entry_price),
+                "exit_price": float(close.iloc[-1]), 
+                "entry_time": str(df_bt.index[t.entry_bar]),
+                "exit_time": "Open",
+                "pnl": float(t.pl),
+                "return_pct": float(t.pl_pct * 100),
+                "duration": "Ongoing"
+            })
+            
+    trades_list.reverse()
+
+    return {
+        "stats": stats_dict,
+        "trades": trades_list
+    }
+

@@ -9,6 +9,7 @@ const navItems = [
   { path: '/journal', label: 'Journal', icon: BookOpen },
   { path: '/alerts', label: 'Alerts', icon: Bell },
   { path: '/backtest', label: 'Backtester', icon: Activity },
+  { path: '/backtest/intraday', label: 'Intraday BT', icon: Activity },
 ];
 
 export default function Sidebar({ isOpen, closeSidebar }) {

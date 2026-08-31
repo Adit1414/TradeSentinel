@@ -25,6 +25,10 @@ class IndicatorResult:
 
     # EMA 200 (legacy — kept for backward-compat; not used by long_term mode)
     ema_200: Optional[float] = None
+    
+    # Intraday EMAs
+    ema_9: Optional[float] = None
+    ema_21: Optional[float] = None
 
     # Supertrend (intraday / short_selling only)
     supertrend_value: float = 0.0
@@ -286,6 +290,21 @@ def calculate_indicators(
             if include_series:
                 result.series["rsi"] = rsi_series.dropna()
 
+        # ── Intraday EMAs (9, 21) ───────────────────────────────────────
+        ema9_series = ta.ema(close=df[close_col], length=9)
+        if ema9_series is not None and not ema9_series.empty:
+            latest_ema9 = ema9_series.iloc[-1]
+            result.ema_9 = float(latest_ema9) if not pd.isna(latest_ema9) else None
+            if include_series:
+                result.series["ema_9"] = ema9_series.dropna()
+                
+        ema21_series = ta.ema(close=df[close_col], length=21)
+        if ema21_series is not None and not ema21_series.empty:
+            latest_ema21 = ema21_series.iloc[-1]
+            result.ema_21 = float(latest_ema21) if not pd.isna(latest_ema21) else None
+            if include_series:
+                result.series["ema_21"] = ema21_series.dropna()
+
         # ── MACD (12, 26, 9) ──────────────────────────────────────────
         macd_df = ta.macd(close=df[close_col], fast=12, slow=26, signal=9)
         if macd_df is not None and not macd_df.empty:
@@ -407,6 +426,8 @@ def get_chart_data(df: pd.DataFrame, mode: str = "intraday") -> dict:
         "latest": {
             "price": result.price if result else 0,
             "vwap": result.vwap,
+            "ema_9": result.ema_9,
+            "ema_21": result.ema_21,
             "ema_200": result.ema_200,
             "supertrend_value": result.supertrend_value if result else 0,
             "supertrend_direction": result.supertrend_direction if result else 0,
