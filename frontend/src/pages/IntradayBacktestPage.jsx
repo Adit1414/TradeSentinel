@@ -22,6 +22,8 @@ export default function IntradayBacktestPage() {
   const [estimatedTimeLeft, setEstimatedTimeLeft] = useState(0);
   
   const abortControllerRef = useRef(null);
+  const startTimeRef = useRef(null);
+  const totalProcessedRef = useRef(0);
 
   const handleSingleSubmit = async (e) => {
     e.preventDefault();
@@ -66,7 +68,9 @@ export default function IntradayBacktestPage() {
       setIsBatchRunning(true);
       setBatchResults([]);
       setBatchProgress({ current: 0, total: tickers.length, currentTicker: tickers[0] });
-      setEstimatedTimeLeft(tickers.length * 1.5);
+      setEstimatedTimeLeft(tickers.length * 3); // initial guess: 3 seconds per ticker
+      startTimeRef.current = Date.now();
+      totalProcessedRef.current = 0;
       
       abortControllerRef.current = new AbortController();
       const newResults = [];
@@ -78,7 +82,6 @@ export default function IntradayBacktestPage() {
 
         const currentTicker = tickers[i];
         setBatchProgress({ current: i, total: tickers.length, currentTicker });
-        setEstimatedTimeLeft(Math.max(0, (tickers.length - i) * 1.5));
 
         try {
           const response = await backtestApi.intradayRun({
@@ -109,6 +112,11 @@ export default function IntradayBacktestPage() {
           // Penalty Delay on Rate Limit or Error
           await new Promise(r => setTimeout(r, 3000));
         }
+
+        totalProcessedRef.current += 1;
+        const elapsed = (Date.now() - startTimeRef.current) / 1000;
+        const avgTimePerTicker = elapsed / totalProcessedRef.current;
+        setEstimatedTimeLeft(Math.max(0, (tickers.length - totalProcessedRef.current) * avgTimePerTicker));
       }
     } catch (err) {
       console.error(err);
@@ -132,6 +140,7 @@ export default function IntradayBacktestPage() {
   const successfulBatch = batchResults.filter(r => !r.error);
   const batchAgg = successfulBatch.length > 0 ? {
     avgReturn: successfulBatch.reduce((acc, curr) => acc + curr.return_pct, 0) / successfulBatch.length,
+    avgBnH: successfulBatch.reduce((acc, curr) => acc + curr.buy_hold_return_pct, 0) / successfulBatch.length,
     avgWinRate: successfulBatch.reduce((acc, curr) => acc + curr.win_rate_pct, 0) / successfulBatch.length,
     totalProfit: successfulBatch.reduce((acc, curr) => acc + curr.total_profit_earned, 0),
     totalLoss: successfulBatch.reduce((acc, curr) => acc + curr.total_loss_incurred, 0),
@@ -307,12 +316,20 @@ export default function IntradayBacktestPage() {
                     <div className="metric-card">
                       <div className="metric-label">Avg Total Return</div>
                       <div className={`metric-value ${batchAgg.avgReturn >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {batchAgg.avgReturn.toFixed(2)}%
+                        {batchAgg.avgReturn >= 0 ? '+' : ''}{batchAgg.avgReturn.toFixed(2)}%
+                      </div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">Avg Buy & Hold</div>
+                      <div className={`metric-value ${batchAgg.avgBnH >= 0 ? 'text-success' : 'text-danger'}`}>
+                        {batchAgg.avgBnH >= 0 ? '+' : ''}{batchAgg.avgBnH.toFixed(2)}%
                       </div>
                     </div>
                     <div className="metric-card">
                       <div className="metric-label">Avg Win Rate</div>
-                      <div className="metric-value">{batchAgg.avgWinRate.toFixed(2)}%</div>
+                      <div className={`metric-value ${batchAgg.avgWinRate >= 50 ? 'text-success' : (batchAgg.avgWinRate > 0 ? 'text-warning' : 'text-danger')}`}>
+                        {batchAgg.avgWinRate.toFixed(2)}%
+                      </div>
                     </div>
                     <div className="metric-card">
                       <div className="metric-label">Total Profit (Positives)</div>
@@ -332,6 +349,7 @@ export default function IntradayBacktestPage() {
                         <th>Ticker</th>
                         <th>Status</th>
                         <th>Return %</th>
+                        <th>B&H %</th>
                         <th>Win Rate</th>
                         <th>Trades</th>
                         <th>Profit Earned</th>
@@ -348,10 +366,13 @@ export default function IntradayBacktestPage() {
                           ) : (
                             <>
                               <td className="text-success">Success</td>
-                              <td className={r.return_pct >= 0 ? 'text-success' : 'text-danger'}>
-                                {r.return_pct}%
+                              <td className={r.return_pct >= 0 ? 'text-success' : 'text-danger'} style={{ fontWeight: 600 }}>
+                                {r.return_pct >= 0 ? '+' : ''}{r.return_pct}%
                               </td>
-                              <td>{r.win_rate_pct}%</td>
+                              <td className={r.buy_hold_return_pct >= 0 ? 'text-success' : 'text-danger'} style={{ opacity: 0.8 }}>
+                                {r.buy_hold_return_pct >= 0 ? '+' : ''}{r.buy_hold_return_pct}%
+                              </td>
+                              <td className={r.win_rate_pct >= 50 ? 'text-success' : 'text-warning'}>{r.win_rate_pct}%</td>
                               <td>{r.total_trades}</td>
                               <td className="text-success">₹{r.total_profit_earned?.toLocaleString()}</td>
                               <td className="text-danger">₹{r.total_loss_incurred?.toLocaleString()}</td>
@@ -377,14 +398,22 @@ export default function IntradayBacktestPage() {
                     <div className="metric-icon"><Percent size={20} /></div>
                     <div className="metric-label">Total Return</div>
                     <div className={`metric-value ${stats.return_pct >= 0 ? 'text-success' : 'text-danger'}`}>
-                      {stats.return_pct}%
+                      {stats.return_pct >= 0 ? '+' : ''}{stats.return_pct}%
+                    </div>
+                  </div>
+
+                  <div className="metric-card">
+                    <div className="metric-icon"><Percent size={20} style={{opacity: 0.5}}/></div>
+                    <div className="metric-label">Buy & Hold Return</div>
+                    <div className={`metric-value ${stats.buy_hold_return_pct >= 0 ? 'text-success' : 'text-danger'}`} style={{opacity: 0.8}}>
+                      {stats.buy_hold_return_pct >= 0 ? '+' : ''}{stats.buy_hold_return_pct}%
                     </div>
                   </div>
                   
                   <div className="metric-card">
                     <div className="metric-icon"><Activity size={20} /></div>
                     <div className="metric-label">Win Rate</div>
-                    <div className="metric-value text-accent">{stats.win_rate_pct}%</div>
+                    <div className={`metric-value ${stats.win_rate_pct >= 50 ? 'text-success' : 'text-warning'}`}>{stats.win_rate_pct}%</div>
                   </div>
 
                   <div className="metric-card">
