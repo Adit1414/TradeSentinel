@@ -315,39 +315,38 @@ export default function IntradayBacktestPage() {
                   <div className="metrics-grid" style={{ marginBottom: 'var(--space-xl)' }}>
                     <div className="metric-card">
                       <div className="metric-label">Avg Total Return</div>
-                      <div className={`metric-value ${batchAgg.avgReturn >= 0 ? 'text-success' : 'text-danger'}`}>
+                      <div className="metric-value" style={{ color: batchAgg.avgReturn >= 0 ? 'var(--green)' : 'var(--red)' }}>
                         {batchAgg.avgReturn >= 0 ? '+' : ''}{batchAgg.avgReturn.toFixed(2)}%
                       </div>
                     </div>
                     <div className="metric-card">
                       <div className="metric-label">Avg Buy & Hold</div>
-                      <div className={`metric-value ${batchAgg.avgBnH >= 0 ? 'text-success' : 'text-danger'}`}>
+                      <div className="metric-value" style={{ color: batchAgg.avgBnH >= 0 ? 'var(--green)' : 'var(--red)' }}>
                         {batchAgg.avgBnH >= 0 ? '+' : ''}{batchAgg.avgBnH.toFixed(2)}%
                       </div>
                     </div>
                     <div className="metric-card">
                       <div className="metric-label">Avg Win Rate</div>
-                      <div className={`metric-value ${batchAgg.avgWinRate >= 50 ? 'text-success' : (batchAgg.avgWinRate > 0 ? 'text-warning' : 'text-danger')}`}>
+                      <div className="metric-value" style={{ color: batchAgg.avgWinRate >= 50 ? 'var(--green)' : (batchAgg.avgWinRate > 0 ? 'var(--yellow, orange)' : 'var(--red)') }}>
                         {batchAgg.avgWinRate.toFixed(2)}%
                       </div>
                     </div>
                     <div className="metric-card">
                       <div className="metric-label">Total Profit (Positives)</div>
-                      <div className="metric-value text-success">₹{batchAgg.totalProfit.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+                      <div className="metric-value" style={{ color: 'var(--green)' }}>₹{batchAgg.totalProfit.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
                     </div>
                     <div className="metric-card">
                       <div className="metric-label">Total Loss (Negatives)</div>
-                      <div className="metric-value text-danger">₹{batchAgg.totalLoss.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+                      <div className="metric-value" style={{ color: 'var(--red)' }}>₹{batchAgg.totalLoss.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
                     </div>
                   </div>
                 )}
 
-                <div className="table-container" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                <div className="table-container" style={{ maxHeight: '1000px', overflowY: 'auto' }}>
                   <table className="data-table">
                     <thead>
                       <tr>
                         <th>Ticker</th>
-                        <th>Status</th>
                         <th>Return %</th>
                         <th>B&H %</th>
                         <th>Win Rate</th>
@@ -362,21 +361,20 @@ export default function IntradayBacktestPage() {
                         <tr key={i}>
                           <td style={{ fontWeight: 500 }}>{r.ticker}</td>
                           {r.error ? (
-                            <td colSpan="7" style={{ color: 'var(--danger)' }}>{r.error}</td>
+                            <td colSpan="6" style={{ color: 'var(--red)' }}>{r.error}</td>
                           ) : (
                             <>
-                              <td className="text-success">Success</td>
-                              <td className={r.return_pct >= 0 ? 'text-success' : 'text-danger'} style={{ fontWeight: 600 }}>
+                              <td style={{ color: r.return_pct >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
                                 {r.return_pct >= 0 ? '+' : ''}{r.return_pct}%
                               </td>
-                              <td className={r.buy_hold_return_pct >= 0 ? 'text-success' : 'text-danger'} style={{ opacity: 0.8 }}>
+                              <td style={{ color: r.buy_hold_return_pct >= 0 ? 'var(--green)' : 'var(--red)', opacity: 0.8 }}>
                                 {r.buy_hold_return_pct >= 0 ? '+' : ''}{r.buy_hold_return_pct}%
                               </td>
-                              <td className={r.win_rate_pct >= 50 ? 'text-success' : 'text-warning'}>{r.win_rate_pct}%</td>
+                              <td style={{ color: r.win_rate_pct >= 50 ? 'var(--green)' : 'orange' }}>{r.win_rate_pct}%</td>
                               <td>{r.total_trades}</td>
-                              <td className="text-success">₹{r.total_profit_earned?.toLocaleString()}</td>
-                              <td className="text-danger">₹{r.total_loss_incurred?.toLocaleString()}</td>
-                              <td className="text-danger">{r.max_drawdown_pct}%</td>
+                              <td style={{ color: 'var(--green)' }}>₹{r.total_profit_earned?.toLocaleString()}</td>
+                              <td style={{ color: 'var(--red)' }}>₹{r.total_loss_incurred?.toLocaleString()}</td>
+                              <td style={{ color: 'var(--red)' }}>{r.max_drawdown_pct}%</td>
                             </>
                           )}
                         </tr>
@@ -397,7 +395,7 @@ export default function IntradayBacktestPage() {
                   <div className="metric-card">
                     <div className="metric-icon"><Percent size={20} /></div>
                     <div className="metric-label">Total Return</div>
-                    <div className={`metric-value ${stats.return_pct >= 0 ? 'text-success' : 'text-danger'}`}>
+                    <div className="metric-value" style={{ color: stats.return_pct >= 0 ? 'var(--green)' : 'var(--red)' }}>
                       {stats.return_pct >= 0 ? '+' : ''}{stats.return_pct}%
                     </div>
                   </div>
@@ -405,7 +403,7 @@ export default function IntradayBacktestPage() {
                   <div className="metric-card">
                     <div className="metric-icon"><Percent size={20} style={{opacity: 0.5}}/></div>
                     <div className="metric-label">Buy & Hold Return</div>
-                    <div className={`metric-value ${stats.buy_hold_return_pct >= 0 ? 'text-success' : 'text-danger'}`} style={{opacity: 0.8}}>
+                    <div className="metric-value" style={{ color: stats.buy_hold_return_pct >= 0 ? 'var(--green)' : 'var(--red)', opacity: 0.8 }}>
                       {stats.buy_hold_return_pct >= 0 ? '+' : ''}{stats.buy_hold_return_pct}%
                     </div>
                   </div>
@@ -413,7 +411,7 @@ export default function IntradayBacktestPage() {
                   <div className="metric-card">
                     <div className="metric-icon"><Activity size={20} /></div>
                     <div className="metric-label">Win Rate</div>
-                    <div className={`metric-value ${stats.win_rate_pct >= 50 ? 'text-success' : 'text-warning'}`}>{stats.win_rate_pct}%</div>
+                    <div className="metric-value" style={{ color: stats.win_rate_pct >= 50 ? 'var(--green)' : 'orange' }}>{stats.win_rate_pct}%</div>
                   </div>
 
                   <div className="metric-card">
@@ -425,19 +423,19 @@ export default function IntradayBacktestPage() {
                   <div className="metric-card">
                     <div className="metric-icon"><AlertCircle size={20} /></div>
                     <div className="metric-label">Max Drawdown</div>
-                    <div className="metric-value text-danger">{stats.max_drawdown_pct}%</div>
+                    <div className="metric-value" style={{ color: 'var(--red)' }}>{stats.max_drawdown_pct}%</div>
                   </div>
                   
                   <div className="metric-card">
                     <div className="metric-icon"><DollarSign size={20} /></div>
                     <div className="metric-label">Total Profit Earned</div>
-                    <div className="metric-value text-success">₹{stats.total_profit_earned.toLocaleString('en-IN')}</div>
+                    <div className="metric-value" style={{ color: 'var(--green)' }}>₹{stats.total_profit_earned.toLocaleString('en-IN')}</div>
                   </div>
                   
                   <div className="metric-card">
                     <div className="metric-icon"><DollarSign size={20} /></div>
                     <div className="metric-label">Total Loss Incurred</div>
-                    <div className="metric-value text-danger">₹{stats.total_loss_incurred.toLocaleString('en-IN')}</div>
+                    <div className="metric-value" style={{ color: 'var(--red)' }}>₹{stats.total_loss_incurred.toLocaleString('en-IN')}</div>
                   </div>
                 </div>
               </div>
@@ -465,10 +463,10 @@ export default function IntradayBacktestPage() {
                             <td>{trade.exit_time !== "Open" ? new Date(trade.exit_time).toLocaleString() : "Open"}</td>
                             <td>₹{trade.entry_price.toFixed(2)}</td>
                             <td>{trade.exit_time !== "Open" ? `₹${trade.exit_price.toFixed(2)}` : "-"}</td>
-                            <td className={trade.pnl >= 0 ? 'text-success' : 'text-danger'}>
+                            <td style={{ color: trade.pnl >= 0 ? 'var(--green)' : 'var(--red)' }}>
                               {trade.pnl >= 0 ? '+' : ''}₹{trade.pnl.toFixed(2)}
                             </td>
-                            <td className={trade.return_pct >= 0 ? 'text-success' : 'text-danger'}>
+                            <td style={{ color: trade.return_pct >= 0 ? 'var(--green)' : 'var(--red)' }}>
                               {trade.return_pct >= 0 ? '+' : ''}{trade.return_pct.toFixed(2)}%
                             </td>
                             <td>{trade.duration}</td>
